@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#101318">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Treenipäiväkirja">
-<title>Treenipäiväkirja</title>
+<meta name="apple-mobile-web-app-title" content="Treenip√§iv√§kirja">
+<title>Treenip√§iv√§kirja</title>
 </head>
 <body>
 <style>
@@ -30,7 +30,7 @@
   }
   button,input,select,textarea{touch-action:manipulation}
   button{-webkit-user-select:none;user-select:none}
-  /* Brändin taustamonogrammi (KN = Kia Norring) */
+  /* Br√§ndin taustamonogrammi (KN = Kia Norring) */
   body::before{
     content:"KN";
     position:fixed;right:-6vw;top:6vh;z-index:0;
@@ -165,6 +165,10 @@
     text-transform:uppercase;letter-spacing:.05em;padding:6px 8px 6px 0;border-bottom:1px solid var(--line)}
   .hist-table td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
   .spark{display:block;margin:10px 0 2px}
+  .statgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+  .stat{background:var(--surface2);border-radius:10px;padding:10px 8px;text-align:center}
+  .stat b{display:block;font-family:var(--disp);font-size:22px;color:var(--accent);font-variant-numeric:tabular-nums}
+  .stat span{font-size:12px;color:var(--muted)}
   .field{margin:10px 0}
   .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
   .row2{display:flex;gap:10px}
@@ -191,7 +195,7 @@
 <div id="app">
   <header id="topbar">
     <div>
-      <h1>Treenipäiväkirja</h1>
+      <h1>Treenip√§iv√§kirja</h1>
       <div class="brand">Kia Norring Training</div>
     </div>
     <span id="weekbadge"></span>
@@ -200,10 +204,10 @@
   <main id="view"></main>
 </div>
 <nav id="tabs">
-  <button data-tab="week" class="active">📅 Viikko</button>
-  <button data-tab="workout">🏋️ Treeni</button>
-  <button data-tab="history">📈 Historia</button>
-  <button data-tab="settings">⚙️ Asetukset</button>
+  <button data-tab="week" class="active">üìÖ Viikko</button>
+  <button data-tab="workout">üèãÔ∏è Treeni</button>
+  <button data-tab="history">üìà Historia</button>
+  <button data-tab="settings">‚öôÔ∏è Asetukset</button>
 </nav>
 <div id="toast" role="status"></div>
 
@@ -214,120 +218,120 @@ const FEELS = [
   {k:'kevyt',   n:'Kevyt'},
   {k:'sopiva',  n:'Sopiva'},
   {k:'raskas',  n:'Raskas'},
-  {k:'eraskas', n:'Erittäin raskas'},
+  {k:'eraskas', n:'Eritt√§in raskas'},
 ];
 const FEELN = Object.fromEntries(FEELS.map(f=>[f.k,f.n]));
 
 const PROGRAM = {
   ma: { title:'Alakroppa', sub:'Viikon raskain salitreeni', type:'gym', ex:[
     { id:'mave', name:'Maastaveto', sets:3, min:6, max:8, inc:5,
-      tip:'Voimaliike — tee isolla kuormalla. Kun toistot lähenevät kahdeksaa, lisää painoa. Selkä suorana, tanko lähellä sääriä.',
+      tip:'Voimaliike ‚Äî tee isolla kuormalla. Kun toistot l√§henev√§t kahdeksaa, lis√§√§ painoa. Selk√§ suorana, tanko l√§hell√§ s√§√§ri√§.',
       alts:[
-        {name:'Romanialainen maastaveto (RDL)', tip:'Pienempi polvikulma, venytys takareisiin. Hidas alasmeno, selkä suorana.'},
+        {name:'Romanialainen maastaveto (RDL)', tip:'Pienempi polvikulma, venytys takareisiin. Hidas alasmeno, selk√§ suorana.'},
         {name:'Trap bar -maastaveto', tip:'Neutraali ote, pystympi asento. Sama voima-ajatus: raskas kuorma, siisti tekniikka.'},
       ]},
-    { id:'prassi', name:'Jalkaprässi', sets:3, min:8, max:10, inc:5,
-      tip:'Hidas eksentrinen vaihe (alasmeno). Älä tuo kelkkaa ihan ylös asti — polvet eivät saa lukittua.',
+    { id:'prassi', name:'Jalkapr√§ssi', sets:3, min:8, max:10, inc:5,
+      tip:'Hidas eksentrinen vaihe (alasmeno). √Ñl√§ tuo kelkkaa ihan yl√∂s asti ‚Äî polvet eiv√§t saa lukittua.',
       alts:[
-        {name:'Hack-kyykky', tip:'Selkä kiinni penkissä, hidas alasmeno. Älä lukitse polvia ylhäällä.'},
-        {name:'Goblet-kyykky', tip:'Käsipaino rinnalla, kyynärpäät polvien sisäpuolelle alhaalla. Hidas alasmeno.'},
+        {name:'Hack-kyykky', tip:'Selk√§ kiinni penkiss√§, hidas alasmeno. √Ñl√§ lukitse polvia ylh√§√§ll√§.'},
+        {name:'Goblet-kyykky', tip:'K√§sipaino rinnalla, kyyn√§rp√§√§t polvien sis√§puolelle alhaalla. Hidas alasmeno.'},
       ]},
-    { id:'askel', name:'Askelkyykkykävely', sets:2, min:0, max:0, maxSet:true, unit:'toistoa',
-      tip:'Tee niin pitkään kuin jaksat. Painolla ei niin väliä — tee alasmenot hitaasti. Tärkeintä että mukana on jokin unilateraalinen liike.',
+    { id:'askel', name:'Askelkyykkyk√§vely', sets:2, min:0, max:0, maxSet:true, unit:'toistoa',
+      tip:'Tee niin pitk√§√§n kuin jaksat. Painolla ei niin v√§li√§ ‚Äî tee alasmenot hitaasti. T√§rkeint√§ ett√§ mukana on jokin unilateraalinen liike.',
       alts:[
-        {name:'Bulgarialainen askelkyykky', tip:'Takajalka penkillä, 8–10 toistoa/jalka. Hidas alasmeno, paino etujalalla.'},
-        {name:'Askelkyykky paikallaan', tip:'Pitkä askel = pakara, lyhyt = etureisi. Hidas alasmeno.'},
+        {name:'Bulgarialainen askelkyykky', tip:'Takajalka penkill√§, 8‚Äì10 toistoa/jalka. Hidas alasmeno, paino etujalalla.'},
+        {name:'Askelkyykky paikallaan', tip:'Pitk√§ askel = pakara, lyhyt = etureisi. Hidas alasmeno.'},
       ]},
     { id:'loitonnus', name:'Loitonnuslaite', sets:2, min:10, max:12, inc:2.5,
-      tip:'Pakara tekee työn — hallittu liike, pieni pito ääriasennossa.',
+      tip:'Pakara tekee ty√∂n ‚Äî hallittu liike, pieni pito √§√§riasennossa.',
       alts:[
-        {name:'Loitonnus kuminauhalla', tip:'Nauha polvien yläpuolelle, jännitys koko sarjan ajan.'},
-        {name:'Lantionnosto (hip thrust)', tip:'Yläselkä penkkiä vasten, purista pakara huipulla, hidas lasku.'},
+        {name:'Loitonnus kuminauhalla', tip:'Nauha polvien yl√§puolelle, j√§nnitys koko sarjan ajan.'},
+        {name:'Lantionnosto (hip thrust)', tip:'Yl√§selk√§ penkki√§ vasten, purista pakara huipulla, hidas lasku.'},
       ]},
   ]},
-  ti: { title:'Yläkroppa', sub:'Salitreeni', type:'gym', ex:[
-    { id:'ylatalja', name:'Ylätalja', sets:3, min:8, max:10, inc:2.5,
-      tip:'Hidas negatiivinen vaihe — päästä tanko ylös hallitusti.',
+  ti: { title:'Yl√§kroppa', sub:'Salitreeni', type:'gym', ex:[
+    { id:'ylatalja', name:'Yl√§talja', sets:3, min:8, max:10, inc:2.5,
+      tip:'Hidas negatiivinen vaihe ‚Äî p√§√§st√§ tanko yl√∂s hallitusti.',
       alts:[
-        {name:'Leuanveto (avustettu)', tip:'Hallittu ylösveto, hidas lasku. Vähennä avustusta kun toistot täyttyvät.'},
-        {name:'Ylätalja käänteisotteella', tip:'Kapea käänteisote — hauis mukana. Hidas ylöspäästö.'},
+        {name:'Leuanveto (avustettu)', tip:'Hallittu yl√∂sveto, hidas lasku. V√§henn√§ avustusta kun toistot t√§yttyv√§t.'},
+        {name:'Yl√§talja k√§√§nteisotteella', tip:'Kapea k√§√§nteisote ‚Äî hauis mukana. Hidas yl√∂sp√§√§st√∂.'},
       ]},
     { id:'vinopenkki', name:'Vinopenkki', sets:3, min:6, max:8, inc:2.5,
-      tip:'Tee raskaana liikkeenä. Penkki melko pystyyn — aktivoi enemmän olkapäitä.',
+      tip:'Tee raskaana liikkeen√§. Penkki melko pystyyn ‚Äî aktivoi enemm√§n olkap√§it√§.',
       alts:[
-        {name:'Vinopenkki käsipainoilla', tip:'Pidempi liikerata, hidas lasku. Penkki samaan pystykulmaan.'},
+        {name:'Vinopenkki k√§sipainoilla', tip:'Pidempi liikerata, hidas lasku. Penkki samaan pystykulmaan.'},
         {name:'Tasapenkkipunnerrus', tip:'Lavat takana, jalat maassa. Hallittu lasku rinnalle.'},
       ]},
     { id:'tbar', name:'T-Bar-soutu', sets:2, min:8, max:10, inc:5,
-      tip:'Pää vartalon jatke, katse eteen. Älä riuhdo tankoa ylös — vedä hallitusti selällä. Negatiivinen hidas ja venyttävä.',
+      tip:'P√§√§ vartalon jatke, katse eteen. √Ñl√§ riuhdo tankoa yl√∂s ‚Äî ved√§ hallitusti sel√§ll√§. Negatiivinen hidas ja venytt√§v√§.',
       alts:[
-        {name:'Kulmasoutu tangolla', tip:'Selkä suorana, vedä napaan. Ei riuhtomista — selkä tekee työn.'},
-        {name:'Konesoutu', tip:'Rinta kiinni tuessa, hidas venyttävä palautus.'},
+        {name:'Kulmasoutu tangolla', tip:'Selk√§ suorana, ved√§ napaan. Ei riuhtomista ‚Äî selk√§ tekee ty√∂n.'},
+        {name:'Konesoutu', tip:'Rinta kiinni tuessa, hidas venytt√§v√§ palautus.'},
       ]},
-    { id:'hauis', name:'Hauiskääntö käsipainoilla', sets:3, min:8, max:10, inc:1,
-      tip:'Kyynärpäät kiinni kyljissä ja alasmeno on hidas!',
+    { id:'hauis', name:'Hauisk√§√§nt√∂ k√§sipainoilla', sets:3, min:8, max:10, inc:1,
+      tip:'Kyyn√§rp√§√§t kiinni kyljiss√§ ja alasmeno on hidas!',
       alts:[
-        {name:'Hauiskääntö tangolla', tip:'Kyynärpäät kyljissä, ei heijausta vartalolla. Hidas alasmeno.'},
-        {name:'Hammer curl', tip:'Neutraali ote, kyynärpäät paikallaan. Hidas lasku.'},
+        {name:'Hauisk√§√§nt√∂ tangolla', tip:'Kyyn√§rp√§√§t kyljiss√§, ei heijausta vartalolla. Hidas alasmeno.'},
+        {name:'Hammer curl', tip:'Neutraali ote, kyyn√§rp√§√§t paikallaan. Hidas lasku.'},
       ]},
     { id:'ojentaja', name:'Ojentajapunnerrus taljassa', sets:3, min:8, max:10, inc:2.5,
-      tip:'V-mallinen tanko on paras! Kyynärpää pysyy paikallaan kiinni kyljessä — vain kyynärvarsi liikkuu.',
+      tip:'V-mallinen tanko on paras! Kyyn√§rp√§√§ pysyy paikallaan kiinni kyljess√§ ‚Äî vain kyyn√§rvarsi liikkuu.',
       alts:[
-        {name:'Ranskalainen punnerrus', tip:'Kyynärpäät kohti kattoa, vain kyynärvarret liikkuvat. Hidas lasku.'},
-        {name:'Dippi penkiltä', tip:'Kyynärpäät taakse, ei sivulle. Hallittu alasmeno.'},
+        {name:'Ranskalainen punnerrus', tip:'Kyyn√§rp√§√§t kohti kattoa, vain kyyn√§rvarret liikkuvat. Hidas lasku.'},
+        {name:'Dippi penkilt√§', tip:'Kyyn√§rp√§√§t taakse, ei sivulle. Hallittu alasmeno.'},
       ]},
     { id:'vaparit', name:'Vipunostot sivulle', sets:2, min:8, max:10, inc:1,
-      tip:'Tee istuen ja keskity tekemään olkapäällä — istuen liike-energia (heijaus) vähenee.',
+      tip:'Tee istuen ja keskity tekem√§√§n olkap√§√§ll√§ ‚Äî istuen liike-energia (heijaus) v√§henee.',
       alts:[
-        {name:'Vipunostot taljassa', tip:'Tasainen vastus koko radalla. Pieni kyynärpään kulma, olkapää nostaa.'},
-        {name:'Pystysoutu', tip:'Leveähkö ote, kyynärpäät johtavat. Nosta korkeintaan rinnan tasolle.'},
+        {name:'Vipunostot taljassa', tip:'Tasainen vastus koko radalla. Pieni kyyn√§rp√§√§n kulma, olkap√§√§ nostaa.'},
+        {name:'Pystysoutu', tip:'Leve√§hk√∂ ote, kyyn√§rp√§√§t johtavat. Nosta korkeintaan rinnan tasolle.'},
       ]},
   ]},
-  ke: { title:'Pitkä cardio', sub:'45–90 min · EI KOVAA', type:'cardio',
-    tip:'Rasvanpolttoalue: noin 60–70 % maksimisykkeestä. Kävely, pyöräily, porraskone tai soutu — kävely on tutkitusti tehokkain rasvanpolton näkökulmasta.' },
-  to: { title:'Fore X', sub:'Askeltavoite täyteen silti!', type:'activity',
-    tip:'Fore X -treeni. Kerää askeleet pitkin päivää — tavoite 10 000.' },
+  ke: { title:'Pitk√§ cardio', sub:'45‚Äì90 min ¬∑ EI KOVAA', type:'cardio',
+    tip:'Rasvanpolttoalue: noin 60‚Äì70 % maksimisykkeest√§. K√§vely, py√∂r√§ily, porraskone tai soutu ‚Äî k√§vely on tutkitusti tehokkain rasvanpolton n√§k√∂kulmasta.' },
+  to: { title:'Fore X', sub:'Askeltavoite t√§yteen silti!', type:'activity',
+    tip:'Fore X -treeni. Ker√§√§ askeleet pitkin p√§iv√§√§ ‚Äî tavoite 10 000.' },
   pe: { title:'Koko kroppa', sub:'Salitreeni', type:'gym', ex:[
     { id:'pysty', name:'Pystypunnerrus', sets:3, min:6, max:8, inc:2.5,
-      tip:'Tee voimaliikkeenä, penkki lähes pystysuorassa. Ajatus lihaksessa.',
+      tip:'Tee voimaliikkeen√§, penkki l√§hes pystysuorassa. Ajatus lihaksessa.',
       alts:[
-        {name:'Käsipainopunnerrus istuen', tip:'Selkänoja pystyssä, hallittu lasku korvien tasolle.'},
-        {name:'Arnold-punnerrus', tip:'Kierto liikkeen aikana, kevyemmät painot. Hidas lasku.'},
+        {name:'K√§sipainopunnerrus istuen', tip:'Selk√§noja pystyss√§, hallittu lasku korvien tasolle.'},
+        {name:'Arnold-punnerrus', tip:'Kierto liikkeen aikana, kevyemm√§t painot. Hidas lasku.'},
       ]},
     { id:'kyykky', name:'Takakyykky', sets:3, min:6, max:8, inc:5,
-      tip:'Toinen iso liike — keskity tekniikkaan. Koroke jalkojen alle jos helpottaa alasmenoa. Hidas alasmeno kehittää!',
+      tip:'Toinen iso liike ‚Äî keskity tekniikkaan. Koroke jalkojen alle jos helpottaa alasmenoa. Hidas alasmeno kehitt√§√§!',
       alts:[
-        {name:'Etukyykky', tip:'Tanko etuolkapäillä, kyynärpäät ylhäällä. Pystympi selkä, hidas alasmeno.'},
-        {name:'Goblet-kyykky', tip:'Käsipaino rinnalla. Hidas alasmeno, rinta ylhäällä.'},
+        {name:'Etukyykky', tip:'Tanko etuolkap√§ill√§, kyyn√§rp√§√§t ylh√§√§ll√§. Pystympi selk√§, hidas alasmeno.'},
+        {name:'Goblet-kyykky', tip:'K√§sipaino rinnalla. Hidas alasmeno, rinta ylh√§√§ll√§.'},
       ]},
     { id:'alatalja', name:'Alatalja', sets:2, min:8, max:10, inc:2.5,
-      tip:'Hidas negatiivinen vaihe kunnon venytyksellä. Vahva keskiselkä auttaa maastavedossa!',
+      tip:'Hidas negatiivinen vaihe kunnon venytyksell√§. Vahva keskiselk√§ auttaa maastavedossa!',
       alts:[
-        {name:'Kulmasoutu tangolla', tip:'Selkä suorana, vedä napaan, hallittu lasku.'},
-        {name:'T-Bar-soutu', tip:'Katse eteen, vedä hallitusti selällä, venyttävä negatiivinen.'},
+        {name:'Kulmasoutu tangolla', tip:'Selk√§ suorana, ved√§ napaan, hallittu lasku.'},
+        {name:'T-Bar-soutu', tip:'Katse eteen, ved√§ hallitusti sel√§ll√§, venytt√§v√§ negatiivinen.'},
       ]},
     { id:'keskivartalo', name:'Lankku', sets:3, min:0, max:0, maxSet:true, unit:'sek',
-      tip:'3 × maksimi. Vahva keskivartalo auttaa kaikissa muissa liikkeissä. Kirjaa sekunnit.',
+      tip:'3 √ó maksimi. Vahva keskivartalo auttaa kaikissa muissa liikkeiss√§. Kirjaa sekunnit.',
       alts:[
-        {name:'Roikkumisvatsat', tip:'Roikkuen tangossa, nosta polvet/jalat hallitusti — ei heijausta. Kirjaa toistot.'},
-        {name:'Vatsarutistus taljassa', tip:'Polvillaan, rutista vatsalla — älä vedä käsillä. Kirjaa toistot.'},
+        {name:'Roikkumisvatsat', tip:'Roikkuen tangossa, nosta polvet/jalat hallitusti ‚Äî ei heijausta. Kirjaa toistot.'},
+        {name:'Vatsarutistus taljassa', tip:'Polvillaan, rutista vatsalla ‚Äî √§l√§ ved√§ k√§sill√§. Kirjaa toistot.'},
       ]},
-    { id:'selka', name:'Selän ojennus (laite)', sets:2, min:10, max:12, inc:2.5,
-      tip:'Patja suunnilleen lantion kohdalla, nouse vain suoraan linjaan — ajatus selässä (jopa hieman kaarella). Ota kahvakuula jos liian kevyt. Hidas palautus.',
+    { id:'selka', name:'Sel√§n ojennus (laite)', sets:2, min:10, max:12, inc:2.5,
+      tip:'Patja suunnilleen lantion kohdalla, nouse vain suoraan linjaan ‚Äî ajatus sel√§ss√§ (jopa hieman kaarella). Ota kahvakuula jos liian kevyt. Hidas palautus.',
       alts:[
-        {name:'Hyvää huomenta (kevyt)', tip:'Kevyt tanko niskaan, taivuta lantiosta selkä suorana.'},
+        {name:'Hyv√§√§ huomenta (kevyt)', tip:'Kevyt tanko niskaan, taivuta lantiosta selk√§ suorana.'},
         {name:'Lantionnosto (hip thrust)', tip:'Purista pakara huipulla, hidas lasku.'},
       ]},
   ]},
-  la: { title:'Vapaa treeni', sub:'Tee mitä tuntuu kivalta!', type:'free',
+  la: { title:'Vapaa treeni', sub:'Tee mit√§ tuntuu kivalta!', type:'free',
     tip:'Voit katsoa tilanteen mukaan, vaihdatko perjantain ja lauantain treenien paikkoja. Askeltavoite!' },
-  su: { title:'Lepopäivä', sub:'Askeltavoite + kehonhuolto', type:'rest',
-    tip:'Venyttely edistää palautumista ja aineenvaihduntaa. YouTubessa on hyviä kehonhuoltovideoita.' },
+  su: { title:'Lepop√§iv√§', sub:'Askeltavoite + kehonhuolto', type:'rest',
+    tip:'Venyttely edist√§√§ palautumista ja aineenvaihduntaa. YouTubessa on hyvi√§ kehonhuoltovideoita.' },
 };
 const DAYS = ['ma','ti','ke','to','pe','la','su'];
 const DOW  = {ma:'Ma',ti:'Ti',ke:'Ke',to:'To',pe:'Pe',la:'La',su:'Su'};
 const DOWFULL = {ma:'Maanantai',ti:'Tiistai',ke:'Keskiviikko',to:'Torstai',pe:'Perjantai',la:'Lauantai',su:'Sunnuntai'};
-const CARDIO_MODES = ['Kävely','Pyöräily','Porraskone','Soutu','Muu'];
+const CARDIO_MODES = ['K√§vely','Py√∂r√§ily','Porraskone','Soutu','Muu'];
 
 /* ============================== TILA ============================== */
 const KEY = 'treenipaivakirja_v1';
@@ -343,13 +347,14 @@ if (!state) state = { start: iso(mondayOf(new Date())), deloadEvery: 4, sessions
 if (!state.sessions) state.sessions = {};
 if (!state.defaults) state.defaults = {};
 if (!state.deloadEvery) state.deloadEvery = 4;
+if (!state.prs) state.prs = {};
 
 let saveTimer=null;
 function save(quiet){
   clearTimeout(saveTimer);
   saveTimer = setTimeout(()=>{
     localStorage.setItem(KEY, JSON.stringify(state));
-    if(!quiet) toast('Tallennettu ✓');
+    if(!quiet) toast('Tallennettu ‚úì');
   }, 350);
 }
 function toast(msg){
@@ -388,7 +393,7 @@ function sessionDone(s, dk){
   return Object.values(s.entries||{}).some(e=>e.sets && e.sets.some(x=>x.r!=='' && x.r!=null));
 }
 
-/* Viimeisin kirjaus liikevariantille (nimen mukaan) ennen annettua päivää */
+/* Viimeisin kirjaus liikevariantille (nimen mukaan) ennen annettua p√§iv√§√§ */
 function findLast(variantName, beforeIso){
   const dates=Object.keys(state.sessions).filter(d=>d<beforeIso).sort().reverse();
   for(const d of dates){
@@ -409,33 +414,33 @@ function suggestion(ex, variantName, dateIso){
   const deload=isDeload(dateIso);
   if(!last){
     return { cls:'', txt: deload
-      ? 'Kevennysviikko — pidä kuormat reippaasti varman puolella.'
-      : 'Ensimmäinen kirjaus — hae sopiva aloituspaino tekniikka edellä.' };
+      ? 'Kevennysviikko ‚Äî pid√§ kuormat reippaasti varman puolella.'
+      : 'Ensimm√§inen kirjaus ‚Äî hae sopiva aloituspaino tekniikka edell√§.' };
   }
   const tw=topWeight(last.sets);
   if(deload){
     const dw = tw>0 ? roundInc(tw*0.65, 2.5) : 0;
-    return { cls:'deload', txt:'Kevennysviikko: noin '+(dw>0? dw+' kg' : 'selvästi kevyempi kuorma')+' — jätä 3–4 toistoa varastoon.' };
+    return { cls:'deload', txt:'Kevennysviikko: noin '+(dw>0? dw+' kg' : 'selv√§sti kevyempi kuorma')+' ‚Äî j√§t√§ 3‚Äì4 toistoa varastoon.' };
   }
   if(ex.maxSet){
     const best=Math.max(...last.sets.map(x=>parseInt(x.r)||0));
-    return { cls:'', txt:'Tavoite: yli '+best+' '+(ex.unit||'toistoa')+' — keho tarvitsee uuden ärsykkeen.' };
+    return { cls:'', txt:'Tavoite: yli '+best+' '+(ex.unit||'toistoa')+' ‚Äî keho tarvitsee uuden √§rsykkeen.' };
   }
   const allTop = last.sets.length>=ex.sets && last.sets.every(x=>(parseInt(x.r)||0)>=ex.max);
   if(allTop && tw>0){
-    return { cls:'', txt:'Viimeksi kaikki sarjat ylärajassa ('+ex.max+') → lisää painoa: kokeile '+(tw+ex.inc)+' kg.' };
+    return { cls:'', txt:'Viimeksi kaikki sarjat yl√§rajassa ('+ex.max+') ‚Üí lis√§√§ painoa: kokeile '+(tw+ex.inc)+' kg.' };
   }
   const anyBelow = last.sets.some(x=>(parseInt(x.r)||0) < ex.min);
   if(last.feel==='eraskas' || anyBelow){
-    return { cls:'', txt:'Viimeksi tuntui erittäin raskaalta' + (anyBelow?' / toistot jäivät alle '+ex.min:'') + ' → pidä '+(tw>0?tw+' kg':'sama paino')+' ja hio toistoja.' };
+    return { cls:'', txt:'Viimeksi tuntui eritt√§in raskaalta' + (anyBelow?' / toistot j√§iv√§t alle '+ex.min:'') + ' ‚Üí pid√§ '+(tw>0?tw+' kg':'sama paino')+' ja hio toistoja.' };
   }
-  return { cls:'', txt:'Pidä '+(tw>0?tw+' kg':'sama paino')+' ja tavoittele +1 toisto per sarja.' };
+  return { cls:'', txt:'Pid√§ '+(tw>0?tw+' kg':'sama paino')+' ja tavoittele +1 toisto per sarja.' };
 }
 function setsToStr(sets){
   return sets.map(x=>{
     const w=x.w!==''&&x.w!=null?x.w:null, r=x.r;
-    return w!=null ? (w+'×'+r) : String(r);
-  }).join(' · ');
+    return w!=null ? (w+'√ó'+r) : String(r);
+  }).join(' ¬∑ ');
 }
 
 /* ============================== UI ============================== */
@@ -450,7 +455,7 @@ function h(html){ const t=document.createElement('template'); t.innerHTML=html.t
 function updateTopbar(){
   const w=weekNum(selDate);
   document.getElementById('weekbadge').textContent =
-    w>0 ? 'Viikko '+w+' · sykli '+(((Math.ceil(w/state.deloadEvery)-1)%1000)+1) : '';
+    w>0 ? 'Viikko '+w+' ¬∑ sykli '+(((Math.ceil(w/state.deloadEvery)-1)%1000)+1) : '';
   document.getElementById('deloadpill').hidden = !isDeload(selDate);
 }
 
@@ -470,9 +475,9 @@ function renderWeek(){
   const today=iso(new Date());
   const w=weekNum(mon);
   let html='<div class="weeknav">'
-    + '<button class="ghost" id="wprev" aria-label="Edellinen viikko">‹</button>'
-    + '<h2>Viikko '+(w>0?w:'—')+' <span class="muted" style="font:400 14px -apple-system,sans-serif">'+fmtFi(mon)+'–'+fmtFi(addDays(mon,6))+'</span></h2>'
-    + '<button class="ghost" id="wnext" aria-label="Seuraava viikko">›</button></div>';
+    + '<button class="ghost" id="wprev" aria-label="Edellinen viikko">‚Äπ</button>'
+    + '<h2>Viikko '+(w>0?w:'‚Äî')+' <span class="muted" style="font:400 14px -apple-system,sans-serif">'+fmtFi(mon)+'‚Äì'+fmtFi(addDays(mon,6))+'</span></h2>'
+    + '<button class="ghost" id="wnext" aria-label="Seuraava viikko">‚Ä∫</button></div>';
   if(isDeload(mon)){
     html+='<div class="deload-banner"><b>Kevennysviikko.</b> Pudota painot noin 65 %:iin, sama tekniikka ja liikelaajuus. Palautuminen tekee kasvun.</div>';
   }
@@ -484,23 +489,23 @@ function renderWeek(){
     if(s && done){
       if(p.type==='gym'){
         const n=Object.values(s.entries||{}).reduce((a,e)=>a+e.sets.filter(x=>x.r!==''&&x.r!=null).length,0);
-        sub=n+' sarjaa kirjattu'+(s.feel?' · '+FEELN[s.feel]:'');
+        sub=n+' sarjaa kirjattu'+(s.feel?' ¬∑ '+FEELN[s.feel]:'');
       } else if(p.type==='cardio' && s.cardio.kesto){
-        sub=(s.cardio.laji||'Cardio')+' '+s.cardio.kesto+' min'+(s.feel?' · '+FEELN[s.feel]:'');
-      } else sub='Tehty'+(s.feel?' · '+FEELN[s.feel]:'');
+        sub=(s.cardio.laji||'Cardio')+' '+s.cardio.kesto+' min'+(s.feel?' ¬∑ '+FEELN[s.feel]:'');
+      } else sub='Tehty'+(s.feel?' ¬∑ '+FEELN[s.feel]:'');
     }
     html+='<button class="daycard'+(d===today?' today':'')+'" data-date="'+d+'">'
       +'<span class="dow">'+DOW[dk]+'<small>'+fmtFi(d)+'</small></span>'
       +'<span class="what"><span class="nm">'+esc(p.title)+'</span><br><span class="sub">'+esc(sub)+'</span></span>'
-      +'<span class="status'+(done?' done':'')+'">'+(done?'✓':'')+'</span></button>';
+      +'<span class="status'+(done?' done':'')+'">'+(done?'‚úì':'')+'</span></button>';
   }
   html+='<details class="guide"><summary>Yleiset ohjeet (ohjelmasta)</summary><ul>'
-    +'<li>Juo vettä n. 2,5 l päivässä — edistää aineenvaihduntaa ja ruuansulatusta.</li>'
-    +'<li>Askeltavoite 10 000 / päivä, kerää pitkin päivää.</li>'
-    +'<li>Kirjaa treenit ylös — keho tarvitsee uuden ärsykkeen (paino tai toistot).</li>'
-    +'<li>Rasva palaa parhaiten kevyellä aerobisella (20 min riittää kerralla).</li>'
-    +'<li>Älä syö liikaa suolaa — sitoo nestettä.</li>'
-    +'<li>Syö tarpeeksi, erityisesti proteiinia ja kasviksia.</li>'
+    +'<li>Juo vett√§ n. 2,5 l p√§iv√§ss√§ ‚Äî edist√§√§ aineenvaihduntaa ja ruuansulatusta.</li>'
+    +'<li>Askeltavoite 10 000 / p√§iv√§, ker√§√§ pitkin p√§iv√§√§.</li>'
+    +'<li>Kirjaa treenit yl√∂s ‚Äî keho tarvitsee uuden √§rsykkeen (paino tai toistot).</li>'
+    +'<li>Rasva palaa parhaiten kevyell√§ aerobisella (20 min riitt√§√§ kerralla).</li>'
+    +'<li>√Ñl√§ sy√∂ liikaa suolaa ‚Äî sitoo nestett√§.</li>'
+    +'<li>Sy√∂ tarpeeksi, erityisesti proteiinia ja kasviksia.</li>'
     +'</ul></details>';
   $view.innerHTML=html;
   document.getElementById('wprev').onclick=()=>{ selDate=addDays(mon,-7); render(); };
@@ -517,12 +522,12 @@ function feelButtons(cur, onPickAttr){
 function renderWorkout(){
   const dk=dayKeyOf(selDate), p=PROGRAM[dk];
   const deload=isDeload(selDate);
-  let html='<div class="dayhead"><h2>'+DOWFULL[dk]+' · '+esc(p.title)+'</h2>'
-    +'<div class="datebtns"><button id="dprev" aria-label="Edellinen päivä">‹</button>'
+  let html='<div class="dayhead"><h2>'+DOWFULL[dk]+' ¬∑ '+esc(p.title)+'</h2>'
+    +'<div class="datebtns"><button id="dprev" aria-label="Edellinen p√§iv√§">‚Äπ</button>'
     +'<input type="date" id="dpick" value="'+selDate+'" style="width:auto">'
-    +'<button id="dnext" aria-label="Seuraava päivä">›</button></div></div>'
-    +'<div class="muted">'+esc(p.sub)+' · '+fmtFi(selDate)+'</div>';
-  if(deload) html+='<div class="deload-banner"><b>Kevennysviikko:</b> noin 65 % normaalipainoista, jätä 3–4 toistoa varastoon. Kevyt viikko valmistaa seuraavaan nousuun.</div>';
+    +'<button id="dnext" aria-label="Seuraava p√§iv√§">‚Ä∫</button></div></div>'
+    +'<div class="muted">'+esc(p.sub)+' ¬∑ '+fmtFi(selDate)+'</div>';
+  if(deload) html+='<div class="deload-banner"><b>Kevennysviikko:</b> noin 65 % normaalipainoista, j√§t√§ 3‚Äì4 toistoa varastoon. Kevyt viikko valmistaa seuraavaan nousuun.</div>';
 
   const s=getSession(selDate);
 
@@ -534,7 +539,7 @@ function renderWorkout(){
       const vinfo = variant===ex.name ? ex : (ex.alts.find(a=>a.name===variant)||ex);
       const last=findLast(variant, selDate);
       const sug=suggestion(ex, variant, selDate);
-      const target= ex.maxSet ? (ex.sets+' × max') : (ex.sets+' × '+ex.min+'–'+ex.max);
+      const target= ex.maxSet ? (ex.sets+' √ó max') : (ex.sets+' √ó '+ex.min+'‚Äì'+ex.max);
       const nsets = entry?entry.sets.length:ex.sets;
 
       html+='<div class="card" data-ex="'+ex.id+'">'
@@ -548,21 +553,21 @@ function renderWorkout(){
         html+='<div class="lastline">Viimeksi '+fmtFi(last.date)+': <b>'+esc(setsToStr(last.sets))+'</b>'
           +(last.feel?' <span class="feel-tag feel-'+last.feel+'">'+FEELN[last.feel]+'</span>':'')+'</div>';
       }
-      html+='<div class="suggest '+sug.cls+'">→ '+esc(sug.txt)+'</div>';
+      html+='<div class="suggest '+sug.cls+'">‚Üí '+esc(sug.txt)+'</div>';
 
       html+='<table class="sets">';
       for(let i=0;i<nsets;i++){
         const st=entry?entry.sets[i]:{w:'',r:''};
         const wPh=last&&last.sets[i]&&last.sets[i].w!==''?last.sets[i].w:'kg';
-        const rPh=ex.maxSet?(ex.unit||'max'):(ex.min+'–'+ex.max);
+        const rPh=ex.maxSet?(ex.unit||'max'):(ex.min+'‚Äì'+ex.max);
         html+='<tr><td>Sarja '+(i+1)+'</td>'
           +(ex.maxSet&&ex.unit==='sek'
             ? '<td></td>'
             : '<td><input type="text" class="num" inputmode="decimal" autocomplete="off" enterkeyhint="next" data-set="'+i+'" data-f="w" placeholder="'+wPh+'" value="'+(st.w??'')+'"><span class="unit">kg</span></td>')
           +'<td><input type="number" inputmode="numeric" step="1" min="0" enterkeyhint="done" data-set="'+i+'" data-f="r" placeholder="'+rPh+'" value="'+(st.r??'')+'"><span class="unit">'+(ex.unit||'toistoa')+'</span></td></tr>';
       }
-      html+='</table><button class="addset" data-addset>+ lisäsarja</button>'
-        +'<div class="muted" style="margin-top:10px">Miltä tuntui?</div>'
+      html+='</table><button class="addset" data-addset>+ lis√§sarja</button>'
+        +'<div class="muted" style="margin-top:10px">Milt√§ tuntui?</div>'
         + feelButtons(entry?entry.feel:null,'data-exfeel')
         +'</div>';
     }
@@ -572,10 +577,10 @@ function renderWorkout(){
       for(const d of ds){ const x=state.sessions[d]; if(x.cardio&&x.cardio.kesto) return {date:d,...x.cardio, feel:x.feel}; } return null; })();
     html+='<div class="card"><h3>Cardio</h3><div class="tip">'+esc(p.tip)+'</div>';
     if(lastC) html+='<div class="lastline">Viimeksi '+fmtFi(lastC.date)+': <b>'+esc(lastC.laji||'')+' '+lastC.kesto+' min</b>'
-      +(lastC.syke?' · syke ~'+lastC.syke:'')+(lastC.feel?' <span class="feel-tag feel-'+lastC.feel+'">'+FEELN[lastC.feel]+'</span>':'')+'</div>';
+      +(lastC.syke?' ¬∑ syke ~'+lastC.syke:'')+(lastC.feel?' <span class="feel-tag feel-'+lastC.feel+'">'+FEELN[lastC.feel]+'</span>':'')+'</div>';
     html+='<div class="row2"><div class="field"><label>Laji</label><select data-cardio="laji">'
       +CARDIO_MODES.map(m=>'<option'+(c.laji===m?' selected':'')+'>'+m+'</option>').join('')+'</select></div>'
-      +'<div class="field"><label>Kesto (min)</label><input type="number" inputmode="numeric" min="0" style="width:100%" data-cardio="kesto" value="'+(c.kesto??'')+'" placeholder="45–90"></div>'
+      +'<div class="field"><label>Kesto (min)</label><input type="number" inputmode="numeric" min="0" style="width:100%" data-cardio="kesto" value="'+(c.kesto??'')+'" placeholder="45‚Äì90"></div>'
       +'<div class="field"><label>Keskisyke</label><input type="number" inputmode="numeric" min="0" style="width:100%" data-cardio="syke" value="'+(c.syke??'')+'" placeholder="valinn."></div></div>'
       +'</div>';
   } else {
@@ -584,9 +589,9 @@ function renderWorkout(){
       +'<input type="checkbox" data-donechk style="width:22px;height:22px" '+(s&&s.done?'checked':'')+'> Tehty!</label></div>';
   }
 
-  /* päivän yhteiset kentät */
+  /* p√§iv√§n yhteiset kent√§t */
   const feel=s?s.feel:null;
-  html+='<div class="card"><h3 style="font-size:17px">Päivän yhteenveto</h3>'
+  html+='<div class="card"><h3 style="font-size:17px">P√§iv√§n yhteenveto</h3>'
     +'<div class="muted" style="margin-top:6px">Treenin kokonaisfiilis</div>'
     + feelButtons(feel,'data-dayfeel')
     +'<div class="row2" style="margin-top:10px"><div class="field"><label>Askeleet (tavoite 10 000)</label>'
@@ -608,7 +613,7 @@ function renderWorkout(){
       inp.addEventListener('input',()=>{
         const e=ensureEntry(selDate,ex);
         while(e.sets.length<=+inp.dataset.set) e.sets.push({w:'',r:''});
-        /* iOS: suomalainen näppäimistö antaa pilkun desimaalierottimeksi → normalisoi pisteeksi */
+        /* iOS: suomalainen n√§pp√§imist√∂ antaa pilkun desimaalierottimeksi ‚Üí normalisoi pisteeksi */
         const v = inp.dataset.f==='w' ? inp.value.replace(/,/g,'.').replace(/[^\d.]/g,'').trim() : inp.value;
         e.sets[+inp.dataset.set][inp.dataset.f]=v;
         save();
@@ -660,6 +665,41 @@ function renderWorkout(){
 }
 
 /* ---------- HISTORIA ---------- */
+function statBox(v,l){ return '<div class="stat"><b>'+v+'</b><span>'+l+'</span></div>'; }
+
+/* Viikon tunnusluvut: treenit, sarjat, askeltavoite, nousseet painot */
+function weekSummary(monIso){
+  let done=0, setCount=0, stepDays=0, stepOk=0;
+  const weekTop={};
+  for(let i=0;i<7;i++){
+    const d=addDays(monIso,i), s=state.sessions[d];
+    if(!s) continue;
+    if(sessionDone(s, dayKeyOf(d))) done++;
+    if(s.steps){ stepDays++; if((parseInt(s.steps)||0)>=10000) stepOk++; }
+    for(const e of Object.values(s.entries||{})){
+      const sets=e.sets?e.sets.filter(x=>x.r!==''&&x.r!=null):[];
+      setCount+=sets.length;
+      const tw=sets.length?topWeight(sets):0;
+      if(tw>0 && (!weekTop[e.name]||tw>weekTop[e.name])) weekTop[e.name]=tw;
+    }
+  }
+  const improved=[];
+  for(const [name,tw] of Object.entries(weekTop)){
+    let prev=0;
+    for(const [d,s] of Object.entries(state.sessions)){
+      if(d>=monIso) continue;
+      for(const e of Object.values(s.entries||{})){
+        if(e.name===name && e.sets){
+          const t=topWeight(e.sets.filter(x=>x.r!==''&&x.r!=null));
+          if(t>prev) prev=t;
+        }
+      }
+    }
+    if(prev>0 && tw>prev) improved.push(name);
+  }
+  return {done, setCount, stepDays, stepOk, improved};
+}
+
 function renderHistory(){
   const names=new Set();
   for(const s of Object.values(state.sessions))
@@ -669,8 +709,22 @@ function renderHistory(){
   if(!histSel || !names.has(histSel)) histSel=list[0]||'';
 
   let html='<div class="dayhead"><h2>Historia</h2></div>';
+
+  /* Viikkokooste: viime viikko */
+  const lastMon=addDays(iso(mondayOf(new Date())),-7);
+  const ws=weekSummary(lastMon);
+  html+='<div class="card"><h3 style="font-size:17px">Viikkokooste ¬∑ '+fmtFi(lastMon)+'‚Äì'+fmtFi(addDays(lastMon,6))+'</h3>'
+    +'<div class="statgrid">'
+    +statBox(ws.done,'treeni√§ tehty')
+    +statBox(ws.setCount,'sarjaa kirjattu')
+    +statBox(ws.stepDays? ws.stepOk+'/'+ws.stepDays : '‚Äî','askeltavoite t√§ynn√§')
+    +statBox(ws.improved.length,'liikkeen paino nousi')
+    +'</div>'
+    +(ws.improved.length?'<div class="muted" style="margin-top:8px">üìà Nousseet: '+ws.improved.map(esc).join(', ')+'</div>':'')
+    +'</div>';
+
   if(!list.length){
-    html+='<div class="card muted">Ei vielä kirjauksia. Kirjaa ensimmäinen treeni Treeni-välilehdellä — historia ja kehitysehdotukset ilmestyvät tähän.</div>';
+    html+='<div class="card muted">Ei viel√§ kirjauksia. Kirjaa ensimm√§inen treeni Treeni-v√§lilehdell√§ ‚Äî historia ja kehitysehdotukset ilmestyv√§t t√§h√§n.</div>';
     $view.innerHTML=html; return;
   }
   html+='<div class="field"><label>Liike</label><select id="histsel">'
@@ -687,6 +741,30 @@ function renderHistory(){
   }
   rows.sort((a,b)=>a.date<b.date?1:-1);
 
+  /* Enn√§tykset: kovin sarja, arvioitu 1RM (Epley), testattu 1RM */
+  let bestSet=null;
+  for(const r of rows){
+    for(const x of r.sets){
+      const w=parseFloat(x.w)||0, reps=parseInt(x.r)||0;
+      if(w>0 && (!bestSet || w>bestSet.w || (w===bestSet.w && reps>bestSet.reps))) bestSet={w, reps, date:r.date};
+    }
+  }
+  const est1rm = bestSet && bestSet.reps>0 ? Math.round(bestSet.w*(1+bestSet.reps/30)) : null;
+  const prList = state.prs[histSel]||[];
+  const bestPr = prList.reduce((a,p)=>(!a||p.w>a.w)?p:a, null);
+  html+='<div class="card"><h3 style="font-size:17px">Enn√§tykset</h3><div class="statgrid">'
+    +statBox(bestSet? bestSet.w+' kg √ó '+bestSet.reps : '‚Äî','kovin sarja'+(bestSet?' ¬∑ '+fmtFi(bestSet.date):''))
+    +statBox(est1rm? '~'+est1rm+' kg':'‚Äî','arvioitu 1RM')
+    +statBox(bestPr? bestPr.w+' kg':'‚Äî','testattu 1RM'+(bestPr?' ¬∑ '+fmtFi(bestPr.date):''))
+    +statBox(prList.length,'1RM-testi√§ kirjattu')
+    +'</div>'
+    +'<div style="display:flex;gap:10px;align-items:flex-end;margin-top:10px">'
+    +'<div class="field" style="margin:0"><label>Uusi 1RM-testi (kg)</label>'
+    +'<input type="text" class="num" inputmode="decimal" autocomplete="off" id="prval" placeholder="kg"></div>'
+    +'<button class="primary" id="praddbtn">Tallenna 1RM</button></div>'
+    +'<div class="muted" style="margin-top:6px">Arvioitu 1RM lasketaan kovimmasta sarjasta (Epley). Testattu 1RM = itse nostettu yhden toiston maksimi.</div>'
+    +'</div>';
+
   /* sparkline: kovimman sarjan paino ajassa */
   const pts=rows.slice().reverse().map(r=>topWeight(r.sets)).filter(v=>v>0);
   if(pts.length>1){
@@ -699,17 +777,24 @@ function renderHistory(){
     html+='<svg class="spark" viewBox="0 0 '+W+' '+H+'" width="100%" height="70" role="img" aria-label="Kovimman sarjan paino ajassa">'
       +'<polyline points="'+poly+'" fill="none" stroke="var(--accent)" stroke-width="2"/>'
       +'<circle cx="'+lastPt.split(',')[0]+'" cy="'+lastPt.split(',')[1]+'" r="3.5" fill="var(--accent)"/>'
-      +'</svg><div class="muted" style="font-size:12px">Kovimman sarjan paino: '+mn+' → '+mx+' kg</div>';
+      +'</svg><div class="muted" style="font-size:12px">Kovimman sarjan paino: '+mn+' ‚Üí '+mx+' kg</div>';
   }
 
-  html+='<table class="hist-table"><tr><th>Pvm</th><th>Sarjat (kg×toistot)</th><th>Tuntuma</th></tr>';
+  html+='<table class="hist-table"><tr><th>Pvm</th><th>Sarjat (kg√ótoistot)</th><th>Tuntuma</th></tr>';
   for(const r of rows){
     html+='<tr><td>'+fmtFi(r.date)+'</td><td>'+esc(setsToStr(r.sets))+'</td>'
-      +'<td>'+(r.feel?'<span class="feel-tag feel-'+r.feel+'">'+FEELN[r.feel]+'</span>':'—')+'</td></tr>';
+      +'<td>'+(r.feel?'<span class="feel-tag feel-'+r.feel+'">'+FEELN[r.feel]+'</span>':'‚Äî')+'</td></tr>';
   }
   html+='</table>';
   $view.innerHTML=html;
   document.getElementById('histsel').onchange=e=>{ histSel=e.target.value; render(); };
+  document.getElementById('praddbtn').onclick=()=>{
+    const v=parseFloat((document.getElementById('prval').value||'').replace(',','.'));
+    if(!v||v<=0){ toast('Anna paino kilogrammoina'); return; }
+    if(!state.prs[histSel]) state.prs[histSel]=[];
+    state.prs[histSel].push({date: iso(new Date()), w: v});
+    save(); render();
+  };
 }
 
 /* ---------- ASETUKSET ---------- */
@@ -721,18 +806,18 @@ function renderSettings(){
     +'<div class="field"><label>Kevennysviikko joka</label><select id="setdeload">'
     +[4,5,6].map(n=>'<option value="'+n+'"'+(state.deloadEvery===n?' selected':'')+'>'+n+'. viikko</option>').join('')
     +'</select></div>'
-    +'<div class="muted">Nousujohteisuus: kun kaikki sarjat osuvat toistohaarukan ylärajaan, ohjelma ehdottaa painon lisäystä. Kevennysviikolla ehdotetaan n. 65 % painoja — palautuminen mahdollistaa seuraavan nousun.</div></div>'
+    +'<div class="muted">Nousujohteisuus: kun kaikki sarjat osuvat toistohaarukan yl√§rajaan, ohjelma ehdottaa painon lis√§yst√§. Kevennysviikolla ehdotetaan n. 65 % painoja ‚Äî palautuminen mahdollistaa seuraavan nousun.</div></div>'
     +'<div class="card"><h3 style="font-size:17px">iPhone-vinkki</h3>'
-    +'<div class="muted">Lisää päiväkirja Koti-valikkoon, niin se avautuu kuin sovellus: avaa sivu Safarissa → paina <b>Jaa</b>-kuvaketta → <b>Lisää Koti-valikkoon</b>. Käytä aina samaa selainta ja laitetta — kirjaukset tallentuvat laitekohtaisesti.</div></div>'
+    +'<div class="muted">Lis√§√§ p√§iv√§kirja Koti-valikkoon, niin se avautuu kuin sovellus: avaa sivu Safarissa ‚Üí paina <b>Jaa</b>-kuvaketta ‚Üí <b>Lis√§√§ Koti-valikkoon</b>. K√§yt√§ aina samaa selainta ja laitetta ‚Äî kirjaukset tallentuvat laitekohtaisesti.</div></div>'
     +'<div class="card"><h3 style="font-size:17px">Varmuuskopio</h3>'
-    +'<div class="muted" style="margin-bottom:10px">Tiedot tallentuvat tämän selaimen muistiin (localStorage). Ota JSON-varmuuskopio silloin tällöin — sen voi tuoda takaisin toisella laitteella tai selaimen tyhjennyksen jälkeen. Huom: Safari voi siivota sivuston tiedot, jos sivulla ei käydä moneen viikkoon — viikoittainen käyttö riittää pitämään ne tallessa.</div>'
+    +'<div class="muted" style="margin-bottom:10px">Tiedot tallentuvat t√§m√§n selaimen muistiin (localStorage). Ota JSON-varmuuskopio silloin t√§ll√∂in ‚Äî sen voi tuoda takaisin toisella laitteella tai selaimen tyhjennyksen j√§lkeen. Huom: Safari voi siivota sivuston tiedot, jos sivulla ei k√§yd√§ moneen viikkoon ‚Äî viikoittainen k√§ytt√∂ riitt√§√§ pit√§m√§√§n ne tallessa.</div>'
     +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
     +'<button class="primary" id="btnexport">Lataa varmuuskopio</button>'
     +'<label class="ghost" style="display:inline-flex;align-items:center;cursor:pointer">Tuo varmuuskopio<input type="file" id="btnimport" accept=".json" hidden></label>'
     +'</div></div>'
     +'<div class="card"><h3 style="font-size:17px">Nollaus</h3>'
-    +'<div class="muted" style="margin-bottom:10px">Poistaa kaikki kirjaukset tästä selaimesta. Ota varmuuskopio ensin!</div>'
-    +'<button class="danger" id="btnreset">Tyhjennä kaikki tiedot</button></div>';
+    +'<div class="muted" style="margin-bottom:10px">Poistaa kaikki kirjaukset t√§st√§ selaimesta. Ota varmuuskopio ensin!</div>'
+    +'<button class="danger" id="btnreset">Tyhjenn√§ kaikki tiedot</button></div>';
   $view.innerHTML=html;
 
   document.getElementById('setstart').onchange=e=>{
@@ -756,15 +841,16 @@ function renderSettings(){
         state=obj;
         if(!state.defaults) state.defaults={};
         if(!state.deloadEvery) state.deloadEvery=4;
+        if(!state.prs) state.prs={};
         localStorage.setItem(KEY, JSON.stringify(state));
-        toast('Varmuuskopio tuotu ✓'); render();
-      }catch(err){ toast('Tiedosto ei kelpaa — tarkista että se on tämän sovelluksen varmuuskopio.'); }
+        toast('Varmuuskopio tuotu ‚úì'); render();
+      }catch(err){ toast('Tiedosto ei kelpaa ‚Äî tarkista ett√§ se on t√§m√§n sovelluksen varmuuskopio.'); }
     };
     rd.readAsText(f);
   };
   document.getElementById('btnreset').onclick=()=>{
-    if(confirm('Poistetaanko kaikki kirjaukset pysyvästi tästä selaimesta?')){
-      state={ start: iso(mondayOf(new Date())), deloadEvery:4, sessions:{}, defaults:{} };
+    if(confirm('Poistetaanko kaikki kirjaukset pysyv√§sti t√§st√§ selaimesta?')){
+      state={ start: iso(mondayOf(new Date())), deloadEvery:4, sessions:{}, defaults:{}, prs:{} };
       localStorage.setItem(KEY, JSON.stringify(state));
       toast('Tiedot tyhjennetty'); render();
     }
