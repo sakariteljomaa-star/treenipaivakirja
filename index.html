@@ -107,7 +107,7 @@
   table.sets{border-collapse:collapse;width:100%;margin:4px 0 8px}
   table.sets td{padding:3px 6px 3px 0}
   table.sets td:first-child{color:var(--muted);font-size:13px;width:52px}
-  input[type=number],input.num,input[type=date],select,textarea{
+  input[type=number],input.num,input[type=date],input[type=email],select,textarea{
     background:var(--surface2);border:1px solid var(--line);color:var(--text);
     border-radius:8px;padding:9px 10px;font-size:16px;width:100%;
     font-variant-numeric:tabular-nums;
@@ -360,12 +360,111 @@ function save(quiet){
   saveTimer = setTimeout(()=>{
     localStorage.setItem(KEY, JSON.stringify(state));
     if(!quiet) toast('Tallennettu ✓');
+    if(cloudOn()) pushDay(selDate);
   }, 350);
 }
 function toast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
   clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1400);
+}
+
+/* ============================== PILVI (Supabase) ============================== */
+const SB_URL='https://iroupwdszrboyjysjjcq.supabase.co';
+const SB_KEY='sb_publishable_Ud9cZaeyQ8TRth-_ALwvmA_PBlZmzGi';
+let sbSession=null;
+let syncMsg='';
+
+function loadAuth(){ try{ sbSession=JSON.parse(localStorage.getItem('tpk_auth'))||null; }catch(e){ sbSession=null; } }
+function saveAuth(){ if(sbSession) localStorage.setItem('tpk_auth', JSON.stringify(sbSession)); else localStorage.removeItem('tpk_auth'); }
+function sbHeaders(){ return { apikey:SB_KEY, Authorization:'Bearer '+sbSession.access_token, 'Content-Type':'application/json' }; }
+function cloudOn(){ return !!(sbSession && sbSession.user && sbSession.user.id); }
+
+/* Magic linkin paluu: tokenit URL-häshissä */
+function handleAuthHash(){
+  if(location.hash && location.hash.indexOf('access_token=')>=0){
+    const p=new URLSearchParams(location.hash.slice(1));
+    const at=p.get('access_token'), rt=p.get('refresh_token');
+    if(at){ sbSession={access_token:at, refresh_token:rt, user:null}; saveAuth();
+      history.replaceState(null,'',location.pathname+location.search); }
+  }
+}
+async function sbSendLink(email){
+  const r=await fetch(SB_URL+'/auth/v1/otp?redirect_to='+encodeURIComponent(location.origin+location.pathname),{
+    method:'POST', headers:{apikey:SB_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({email:email, create_user:true})});
+  if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error(j.msg||j.error_description||('HTTP '+r.status)); }
+}
+async function sbRefresh(){
+  if(!sbSession||!sbSession.refresh_token) return false;
+  try{
+    const r=await fetch(SB_URL+'/auth/v1/token?grant_type=refresh_token',{
+      method:'POST', headers:{apikey:SB_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({refresh_token:sbSession.refresh_token})});
+    if(!r.ok) throw new Error('refresh');
+    const j=await r.json();
+    sbSession={access_token:j.access_token, refresh_token:j.refresh_token, user:j.user||sbSession.user};
+    saveAuth(); return true;
+  }catch(e){ sbSession=null; saveAuth(); return false; }
+}
+async function sbUser(){
+  if(!sbSession) return null;
+  if(!sbSession.user){
+    try{
+      const r=await fetch(SB_URL+'/auth/v1/user',{headers:{apikey:SB_KEY,Authorization:'Bearer '+sbSession.access_token}});
+      if(r.ok){ sbSession.user=await r.json(); saveAuth(); }
+    }catch(e){}
+  }
+  return sbSession.user;
+}
+
+/* Synkka: päivän kirjaus pilveen (upsert user_id+pvm) */
+async function pushDay(dateIso){
+  if(!cloudOn()) return;
+  const s=state.sessions[dateIso]; if(!s) return;
+  try{
+    const r=await fetch(SB_URL+'/rest/v1/sessions?on_conflict=user_id,pvm',{
+      method:'POST', headers:Object.assign(sbHeaders(),{Prefer:'resolution=merge-duplicates'}),
+      body:JSON.stringify({user_id:sbSession.user.id, pvm:dateIso, data:s, updated_at:new Date().toISOString()})});
+    syncMsg = r.ok ? 'Synkattu ✓' : 'Synkkavirhe (kirjaus tallessa paikallisesti)';
+  }catch(e){ syncMsg='Ei yhteyttä — kirjaus tallessa paikallisesti'; }
+}
+async function pushPr(liike, pr){
+  if(!cloudOn()) return;
+  try{ await fetch(SB_URL+'/rest/v1/prs',{method:'POST',headers:sbHeaders(),
+    body:JSON.stringify({user_id:sbSession.user.id, liike:liike, paino:pr.w, pvm:pr.date})}); }catch(e){}
+}
+/* Pilvestä paikalliseen: täydentää puuttuvat päivät ja 1RM:t */
+async function pullCloud(){
+  if(!cloudOn()) return;
+  try{
+    const r=await fetch(SB_URL+'/rest/v1/sessions?select=pvm,data',{headers:sbHeaders()});
+    if(r.ok){ for(const row of await r.json()){ if(!state.sessions[row.pvm]) state.sessions[row.pvm]=row.data; } }
+    const r2=await fetch(SB_URL+'/rest/v1/prs?select=liike,paino,pvm',{headers:sbHeaders()});
+    if(r2.ok){ for(const p of await r2.json()){
+      const arr = state.prs[p.liike] = (state.prs[p.liike]||[]);
+      if(!arr.some(x=>x.date===p.pvm && Number(x.w)===Number(p.paino))) arr.push({date:p.pvm, w:Number(p.paino)});
+    } }
+    localStorage.setItem(KEY, JSON.stringify(state));
+  }catch(e){}
+}
+async function pushCloudAll(){
+  if(!cloudOn()) return;
+  for(const d of Object.keys(state.sessions)) await pushDay(d);
+}
+async function cloudBoot(){
+  loadAuth(); handleAuthHash();
+  if(!sbSession) return;
+  const ok=await sbRefresh();
+  if(!ok){ render(); return; }
+  await sbUser();
+  if(cloudOn()){
+    await pullCloud();
+    await pushCloudAll();
+    syncMsg='Synkattu ✓';
+    render();
+    toast('Pilvisynkronointi päällä ✓');
+  }
 }
 
 function weekNum(dateIso){
@@ -865,7 +964,9 @@ function renderHistory(){
     const v=parseFloat((document.getElementById('prval').value||'').replace(',','.'));
     if(!v||v<=0){ toast('Anna paino kilogrammoina'); return; }
     if(!state.prs[histSel]) state.prs[histSel]=[];
-    state.prs[histSel].push({date: iso(new Date()), w: v});
+    const pr={date: iso(new Date()), w: v};
+    state.prs[histSel].push(pr);
+    pushPr(histSel, pr);
     save(); render();
   };
 }
@@ -873,6 +974,16 @@ function renderHistory(){
 /* ---------- ASETUKSET ---------- */
 function renderSettings(){
   let html='<div class="dayhead"><h2>Asetukset</h2></div>'
+    +'<div class="card"><h3 style="font-size:17px">☁️ Pilvisynkronointi</h3>'
+    +(cloudOn()
+      ? '<div class="muted" style="margin-bottom:10px">Kirjautunut: <b style="color:var(--text)">'+esc((sbSession.user&&sbSession.user.email)||'')+'</b>'
+        +(syncMsg?' · '+esc(syncMsg):'')
+        +'<br>Kirjaukset tallentuvat pilveen automaattisesti. Voit kirjautua samalla sähköpostilla toisellakin laitteella — kirjaukset seuraavat mukana.</div>'
+        +'<button class="ghost" id="btnlogout">Kirjaudu ulos</button>'
+      : '<div class="muted" style="margin-bottom:10px">Kirjaudu sähköpostilla, niin kirjaukset tallentuvat pilveen eivätkä katoa vaikka selain tyhjenisi. Saat sähköpostiisi kirjautumislinkin — <b>avaa se tällä samalla laitteella</b>.</div>'
+        +'<div class="field"><label>Sähköposti</label><input type="email" id="loginmail" autocomplete="email" placeholder="oma@sahkoposti.fi"></div>'
+        +'<button class="primary" id="btnlogin">Lähetä kirjautumislinkki</button>')
+    +'</div>'
     +'<div class="card"><h3 style="font-size:17px">Ohjelman jaksotus</h3>'
     +'<div class="field"><label>Ohjelman aloitusviikon maanantai</label>'
     +'<input type="date" id="setstart" value="'+state.start+'"></div>'
@@ -892,6 +1003,17 @@ function renderSettings(){
     +'<div class="muted" style="margin-bottom:10px">Poistaa kaikki kirjaukset tästä selaimesta. Ota varmuuskopio ensin!</div>'
     +'<button class="danger" id="btnreset">Tyhjennä kaikki tiedot</button></div>';
   $view.innerHTML=html;
+
+  const bl=document.getElementById('btnlogin');
+  if(bl) bl.onclick=async()=>{
+    const em=(document.getElementById('loginmail').value||'').trim();
+    if(!em||em.indexOf('@')<1){ toast('Anna sähköpostiosoite'); return; }
+    bl.disabled=true; bl.textContent='Lähetetään…';
+    try{ await sbSendLink(em); toast('Linkki lähetetty — tarkista sähköposti 📧'); bl.textContent='Linkki lähetetty ✓'; }
+    catch(e){ toast('Lähetys epäonnistui: '+e.message); bl.disabled=false; bl.textContent='Lähetä kirjautumislinkki'; }
+  };
+  const bo=document.getElementById('btnlogout');
+  if(bo) bo.onclick=()=>{ sbSession=null; saveAuth(); syncMsg=''; toast('Kirjauduttu ulos'); render(); };
 
   document.getElementById('setstart').onchange=e=>{
     if(e.target.value){ state.start=iso(mondayOf(fromIso(e.target.value))); save(); updateTopbar(); }
@@ -934,6 +1056,7 @@ document.querySelectorAll('#tabs button').forEach(b=>{
   b.addEventListener('click',()=>{ tab=b.dataset.tab; render(); });
 });
 render();
+cloudBoot();
 </script>
 
 </body>
