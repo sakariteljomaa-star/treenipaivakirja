@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101318">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Treenipäiväkirja">
+<title>Treenipäiväkirja</title>
+</head>
+<body>
+<style>
+  :root{
+    --bg:#101318; --surface:#191e26; --surface2:#222a36; --line:#2b3442;
+    --text:#e9ecf1; --muted:#8a94a6; --accent:#ffb454; --accent-ink:#241a08;
+    --teal:#4cc9c0;
+    --f-kevyt:#4cc38a; --f-sopiva:#5b9dd9; --f-raskas:#e5934a; --f-eraskas:#e05a6d;
+    --radius:12px;
+    --disp:"Avenir Next Condensed","Arial Narrow",-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text);
+    font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    -webkit-tap-highlight-color:transparent;
+  }
+  button,input,select,textarea{touch-action:manipulation}
+  button{-webkit-user-select:none;user-select:none}
+  #app{
+    max-width:600px;margin:0 auto;
+    padding:0 max(14px, env(safe-area-inset-left)) calc(84px + env(safe-area-inset-bottom));
+  }
+  /* ---------- top bar ---------- */
+  #topbar{
+    position:sticky;top:0;z-index:20;background:linear-gradient(var(--bg) 85%,transparent);
+    padding:calc(14px + env(safe-area-inset-top)) 2px 10px;
+    display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
+  }
+  #topbar h1{
+    margin:0;font-family:var(--disp);font-weight:700;font-size:26px;
+    text-transform:uppercase;letter-spacing:.06em;
+  }
+  #weekbadge{color:var(--muted);font-size:14px}
+  .deload-pill{
+    background:var(--teal);color:#062a28;font-weight:700;font-size:12px;
+    padding:3px 10px;border-radius:999px;text-transform:uppercase;letter-spacing:.08em;
+  }
+  /* ---------- bottom tabs ---------- */
+  #tabs{
+    position:fixed;left:0;right:0;bottom:0;z-index:30;
+    display:flex;justify-content:center;gap:4px;
+    background:rgba(16,19,24,.92);backdrop-filter:blur(8px);
+    border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom));
+  }
+  #tabs button{
+    flex:1;max-width:150px;background:none;border:0;color:var(--muted);
+    font:600 13px/1 -apple-system,sans-serif;padding:10px 4px;border-radius:10px;cursor:pointer;
+  }
+  #tabs button.active{color:var(--accent);background:var(--surface2)}
+  #tabs button:focus-visible{outline:2px solid var(--accent)}
+  /* ---------- cards ---------- */
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px;margin:10px 0;
+  }
+  .card h3{margin:0 0 2px;font-family:var(--disp);font-size:20px;letter-spacing:.02em;text-transform:uppercase}
+  .muted{color:var(--muted);font-size:13px}
+  .tip{
+    color:var(--muted);font-size:13px;margin:6px 0 10px;padding-left:10px;
+    border-left:2px solid var(--line);
+  }
+  .lastline{font-size:13px;margin:4px 0;color:var(--text)}
+  .lastline b{font-variant-numeric:tabular-nums}
+  .suggest{
+    font-size:13px;color:var(--accent);margin:2px 0 10px;
+  }
+  .suggest.deload{color:var(--teal)}
+  /* ---------- day header row inside workout ---------- */
+  .dayhead{display:flex;align-items:center;gap:10px;margin:16px 0 4px;flex-wrap:wrap}
+  .dayhead h2{margin:0;font-family:var(--disp);font-size:24px;text-transform:uppercase;letter-spacing:.04em}
+  .datebtns{display:flex;gap:6px;margin-left:auto}
+  .datebtns button,.ghost{
+    background:var(--surface2);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:6px 12px;font-size:14px;cursor:pointer;
+  }
+  .datebtns button:focus-visible,.ghost:focus-visible{outline:2px solid var(--accent)}
+  /* ---------- set rows ---------- */
+  table.sets{border-collapse:collapse;width:100%;margin:4px 0 8px}
+  table.sets td{padding:3px 6px 3px 0}
+  table.sets td:first-child{color:var(--muted);font-size:13px;width:52px}
+  input[type=number],input.num,input[type=date],select,textarea{
+    background:var(--surface2);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:9px 10px;font-size:16px;width:100%;
+    font-variant-numeric:tabular-nums;
+  }
+  input[type=number],input.num{width:84px;text-align:center}
+  input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);border-color:var(--accent)}
+  .unit{color:var(--muted);font-size:12px;padding:0 8px 0 4px}
+  .addset{background:none;border:1px dashed var(--line);color:var(--muted);border-radius:8px;
+    padding:5px 12px;font-size:13px;cursor:pointer}
+  /* ---------- feel chips ---------- */
+  .feels{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+  .feels button{
+    border:1px solid var(--line);background:var(--surface2);color:var(--muted);
+    border-radius:999px;padding:9px 14px;font-size:14px;cursor:pointer;min-height:40px;
+  }
+  .feels button.sel-kevyt{background:var(--f-kevyt);border-color:var(--f-kevyt);color:#04140d;font-weight:600}
+  .feels button.sel-sopiva{background:var(--f-sopiva);border-color:var(--f-sopiva);color:#071322;font-weight:600}
+  .feels button.sel-raskas{background:var(--f-raskas);border-color:var(--f-raskas);color:#1d0f03;font-weight:600}
+  .feels button.sel-eraskas{background:var(--f-eraskas);border-color:var(--f-eraskas);color:#210409;font-weight:600}
+  .feels button:focus-visible{outline:2px solid var(--accent)}
+  .feel-tag{font-size:12px;padding:1px 8px;border-radius:999px;font-weight:600}
+  .feel-kevyt{background:var(--f-kevyt);color:#04140d}
+  .feel-sopiva{background:var(--f-sopiva);color:#071322}
+  .feel-raskas{background:var(--f-raskas);color:#1d0f03}
+  .feel-eraskas{background:var(--f-eraskas);color:#210409}
+  /* ---------- variant select ---------- */
+  .variant{display:flex;align-items:center;gap:8px;margin:2px 0 4px}
+  .variant select{width:auto;flex:1;font-size:14px;padding:6px 8px}
+  .variant .swap{color:var(--muted);font-size:12px;white-space:nowrap}
+  /* ---------- week calendar ---------- */
+  .weeknav{display:flex;align-items:center;gap:10px;margin:14px 0 6px}
+  .weeknav h2{margin:0;font-family:var(--disp);font-size:22px;text-transform:uppercase;flex:1}
+  .daycard{
+    display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px 14px;margin:8px 0;color:var(--text);cursor:pointer;font-size:15px;
+  }
+  .daycard:focus-visible{outline:2px solid var(--accent)}
+  .daycard.today{border-color:var(--accent)}
+  .daycard .dow{
+    font-family:var(--disp);font-size:18px;text-transform:uppercase;width:74px;line-height:1.1;
+  }
+  .daycard .dow small{display:block;color:var(--muted);font:400 12px -apple-system,sans-serif}
+  .daycard .what{flex:1}
+  .daycard .what .nm{font-weight:600}
+  .daycard .what .sub{color:var(--muted);font-size:13px}
+  .status{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+  .status.done{background:var(--f-kevyt);border-color:var(--f-kevyt);color:#04140d;font-weight:700}
+  details.guide{margin:16px 0}
+  details.guide summary{cursor:pointer;color:var(--muted);font-size:14px}
+  details.guide ul{color:var(--muted);font-size:14px;padding-left:20px}
+  /* ---------- history ---------- */
+  .hist-table{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+  .hist-table th{color:var(--muted);text-align:left;font-weight:500;font-size:12px;
+    text-transform:uppercase;letter-spacing:.05em;padding:6px 8px 6px 0;border-bottom:1px solid var(--line)}
+  .hist-table td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  .spark{display:block;margin:10px 0 2px}
+  .field{margin:10px 0}
+  .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+  .row2{display:flex;gap:10px}
+  .row2 .field{flex:1}
+  .primary{
+    background:var(--accent);border:0;color:var(--accent-ink);font-weight:700;
+    border-radius:8px;padding:10px 16px;font-size:15px;cursor:pointer;
+  }
+  .danger{background:none;border:1px solid var(--f-eraskas);color:var(--f-eraskas);
+    border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer}
+  #toast{
+    position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--surface2);border:1px solid var(--line);color:var(--text);
+    padding:8px 18px;border-radius:999px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:40;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .deload-banner{
+    background:rgba(76,201,192,.12);border:1px solid var(--teal);border-radius:var(--radius);
+    padding:10px 14px;margin:10px 0;font-size:14px;color:var(--teal);
+  }
+  @media (prefers-reduced-motion:reduce){ #toast{transition:none} }
+</style>
+
+<div id="app">
+  <header id="topbar">
+    <h1>Treenipäiväkirja</h1>
+    <span id="weekbadge"></span>
+    <span id="deloadpill" class="deload-pill" hidden>Kevennysviikko</span>
+  </header>
+  <main id="view"></main>
+</div>
+<nav id="tabs">
+  <button data-tab="week" class="active">📅 Viikko</button>
+  <button data-tab="workout">🏋️ Treeni</button>
+  <button data-tab="history">📈 Historia</button>
+  <button data-tab="settings">⚙️ Asetukset</button>
+</nav>
+<div id="toast" role="status"></div>
+
+<script>
+'use strict';
+/* ============================== OHJELMA ============================== */
+const FEELS = [
+  {k:'kevyt',   n:'Kevyt'},
+  {k:'sopiva',  n:'Sopiva'},
+  {k:'raskas',  n:'Raskas'},
+  {k:'eraskas', n:'Erittäin raskas'},
+];
+const FEELN = Object.fromEntries(FEELS.map(f=>[f.k,f.n]));
+
+const PROGRAM = {
+  ma: { title:'Alakroppa', sub:'Viikon raskain salitreeni', type:'gym', ex:[
+    { id:'mave', name:'Maastaveto', sets:3, min:6, max:8, inc:5,
+      tip:'Voimaliike — tee isolla kuormalla. Kun toistot lähenevät kahdeksaa, lisää painoa. Selkä suorana, tanko lähellä sääriä.',
+      alts:[
+        {name:'Rommilainen maastaveto (RDL)', tip:'Pienempi polvikulma, venytys takareisiin. Hidas alasmeno, selkä suorana.'},
+        {name:'Trap bar -maastaveto', tip:'Neutraali ote, pystympi asento. Sama voima-ajatus: raskas kuorma, siisti tekniikka.'},
+      ]},
+    { id:'prassi', name:'Jalkaprässi', sets:3, min:8, max:10, inc:5,
+      tip:'Hidas eksentrinen vaihe (alasmeno). Älä tuo kelkkaa ihan ylös asti — polvet eivät saa lukittua.',
+      alts:[
+        {name:'Hack-kyykky', tip:'Selkä kiinni penkissä, hidas alasmeno. Älä lukitse polvia ylhäällä.'},
+        {name:'Goblet-kyykky', tip:'Käsipaino rinnalla, kyynärpäät polvien sisäpuolelle alhaalla. Hidas alasmeno.'},
+      ]},
+    { id:'askel', name:'Askelkyykkykävely', sets:2, min:0, max:0, maxSet:true, unit:'toistoa',
+      tip:'Tee niin pitkään kuin jaksat. Painolla ei niin väliä — tee alasmenot hitaasti. Tärkeintä että mukana on jokin unilateraalinen liike.',
+      alts:[
+        {name:'Bulgarialainen askelkyykky', tip:'Takajalka penkillä, 8–10 toistoa/jalka. Hidas alasmeno, paino etujalalla.'},
+        {name:'Askelkyykky paikallaan', tip:'Pitkä askel = pakara, lyhyt = etureisi. Hidas alasmeno.'},
+      ]},
+    { id:'loitonnus', name:'Loitonnuslaite', sets:2, min:10, max:12, inc:2.5,
+      tip:'Pakara tekee työn — hallittu liike, pieni pito ääriasennossa.',
+      alts:[
+        {name:'Loitonnus kuminauhalla', tip:'Nauha polvien yläpuolelle, jännitys koko sarjan ajan.'},
+        {name:'Lantionnosto (hip thrust)', tip:'Yläselkä penkkiä vasten, purista pakara huipulla, hidas lasku.'},
+      ]},
+  ]},
+  ti: { title:'Yläkroppa', sub:'Salitreeni', type:'gym', ex:[
+    { id:'ylatalja', name:'Ylätalja', sets:3, min:8, max:10, inc:2.5,
+      tip:'Hidas negatiivinen vaihe — päästä tanko ylös hallitusti.',
+      alts:[
+        {name:'Leuanveto (avustettu)', tip:'Hallittu ylösveto, hidas lasku. Vähennä avustusta kun toistot täyttyvät.'},
+        {name:'Ylätalja käänteisotteella', tip:'Kapea käänteisote — hauis mukana. Hidas ylöspäästö.'},
+      ]},
+    { id:'vinopenkki', name:'Vinopenkki', sets:3, min:6, max:8, inc:2.5,
+      tip:'Tee raskaana liikkeenä. Penkki melko pystyyn — aktivoi enemmän olkapäitä.',
+      alts:[
+        {name:'Vinopenkki käsipainoilla', tip:'Pidempi liikerata, hidas lasku. Penkki samaan pystykulmaan.'},
+        {name:'Tasapenkkipunnerrus', tip:'Lavat takana, jalat maassa. Hallittu lasku rinnalle.'},
+      ]},
+    { id:'tbar', name:'T-Bar-soutu', sets:2, min:8, max:10, inc:5,
+      tip:'Pää vartalon jatke, katse eteen. Älä riuhdo tankoa ylös — vedä hallitusti selällä. Negatiivinen hidas ja venyttävä.',
+      alts:[
+        {name:'Kulmasoutu tangolla', tip:'Selkä suorana, vedä napaan. Ei riuhtomista — selkä tekee työn.'},
+        {name:'Konesoutu', tip:'Rinta kiinni tuessa, hidas venyttävä palautus.'},
+      ]},
+    { id:'hauis', name:'Hauiskääntö käsipainoilla', sets:3, min:8, max:10, inc:1,
+      tip:'Kyynärpäät kiinni kyljissä ja alasmeno on hidas!',
+      alts:[
+        {name:'Hauiskääntö tangolla', tip:'Kyynärpäät kyljissä, ei heijausta vartalolla. Hidas alasmeno.'},
+        {name:'Hammer curl', tip:'Neutraali ote, kyynärpäät paikallaan. Hidas lasku.'},
+      ]},
+    { id:'ojentaja', name:'Ojentajapunnerrus taljassa', sets:3, min:8, max:10, inc:2.5,
+      tip:'V-mallinen tanko on paras! Kyynärpää pysyy paikallaan kiinni kyljessä — vain kyynärvarsi liikkuu.',
+      alts:[
+        {name:'Ranskalainen punnerrus', tip:'Kyynärpäät kohti kattoa, vain kyynärvarret liikkuvat. Hidas lasku.'},
+        {name:'Dippi penkiltä', tip:'Kyynärpäät taakse, ei sivulle. Hallittu alasmeno.'},
+      ]},
+    { id:'vaparit', name:'Vipunostot sivulle', sets:2, min:8, max:10, inc:1,
+      tip:'Tee istuen ja keskity tekemään olkapäällä — istuen liike-energia (heijaus) vähenee.',
+      alts:[
+        {name:'Vipunostot taljassa', tip:'Tasainen vastus koko radalla. Pieni kyynärpään kulma, olkapää nostaa.'},
+        {name:'Pystysoutu', tip:'Leveähkö ote, kyynärpäät johtavat. Nosta korkeintaan rinnan tasolle.'},
+      ]},
+  ]},
+  ke: { title:'Pitkä cardio', sub:'45–90 min · EI KOVAA', type:'cardio',
+    tip:'Rasvanpolttoalue: noin 60–70 % maksimisykkeestä. Kävely, pyöräily, porraskone tai soutu — kävely on tutkitusti tehokkain rasvanpolton näkökulmasta.' },
+  to: { title:'Fore X', sub:'Askeltavoite täyteen silti!', type:'activity',
+    tip:'Fore X -treeni. Kerää askeleet pitkin päivää — tavoite 10 000.' },
+  pe: { title:'Koko kroppa', sub:'Salitreeni', type:'gym', ex:[
+    { id:'pysty', name:'Pystypunnerrus', sets:3, min:6, max:8, inc:2.5,
+      tip:'Tee voimaliikkeenä, penkki lähes pystysuorassa. Ajatus lihaksessa.',
+      alts:[
+        {name:'Käsipainopunnerrus istuen', tip:'Selkänoja pystyssä, hallittu lasku korvien tasolle.'},
+        {name:'Arnold-punnerrus', tip:'Kierto liikkeen aikana, kevyemmät painot. Hidas lasku.'},
+      ]},
+    { id:'kyykky', name:'Takakyykky', sets:3, min:6, max:8, inc:5,
+      tip:'Toinen iso liike — keskity tekniikkaan. Koroke jalkojen alle jos helpottaa alasmenoa. Hidas alasmeno kehittää!',
+      alts:[
+        {name:'Etukyykky', tip:'Tanko etuolkapäillä, kyynärpäät ylhäällä. Pystympi selkä, hidas alasmeno.'},
+        {name:'Goblet-kyykky', tip:'Käsipaino rinnalla. Hidas alasmeno, rinta ylhäällä.'},
+      ]},
+    { id:'alatalja', name:'Alatalja', sets:2, min:8, max:10, inc:2.5,
+      tip:'Hidas negatiivinen vaihe kunnon venytyksellä. Vahva keskiselkä auttaa maastavedossa!',
+      alts:[
+        {name:'Kulmasoutu tangolla', tip:'Selkä suorana, vedä napaan, hallittu lasku.'},
+        {name:'T-Bar-soutu', tip:'Katse eteen, vedä hallitusti selällä, venyttävä negatiivinen.'},
+      ]},
+    { id:'keskivartalo', name:'Lankku', sets:3, min:0, max:0, maxSet:true, unit:'sek',
+      tip:'3 × maksimi. Vahva keskivartalo auttaa kaikissa muissa liikkeissä. Kirjaa sekunnit.',
+      alts:[
+        {name:'Roikkumisvatsat', tip:'Roikkuen tangossa, nosta polvet/jalat hallitusti — ei heijausta. Kirjaa toistot.'},
+        {name:'Vatsarutistus taljassa', tip:'Polvillaan, rutista vatsalla — älä vedä käsillä. Kirjaa toistot.'},
+      ]},
+    { id:'selka', name:'Selän ojennus (laite)', sets:2, min:10, max:12, inc:2.5,
+      tip:'Patja suunnilleen lantion kohdalla, nouse vain suoraan linjaan — ajatus selässä (jopa hieman kaarella). Ota kahvakuula jos liian kevyt. Hidas palautus.',
+      alts:[
+        {name:'Hyvää huomenta (kevyt)', tip:'Kevyt tanko niskaan, taivuta lantiosta selkä suorana.'},
+        {name:'Lantionnosto (hip thrust)', tip:'Purista pakara huipulla, hidas lasku.'},
+      ]},
+  ]},
+  la: { title:'Vapaa treeni', sub:'Tee mitä tuntuu kivalta!', type:'free',
+    tip:'Voit katsoa tilanteen mukaan, vaihdatko perjantain ja lauantain treenien paikkoja. Askeltavoite!' },
+  su: { title:'Lepopäivä', sub:'Askeltavoite + kehonhuolto', type:'rest',
+    tip:'Venyttely edistää palautumista ja aineenvaihduntaa. YouTubessa on hyviä kehonhuoltovideoita.' },
+};
+const DAYS = ['ma','ti','ke','to','pe','la','su'];
+const DOW  = {ma:'Ma',ti:'Ti',ke:'Ke',to:'To',pe:'Pe',la:'La',su:'Su'};
+const DOWFULL = {ma:'Maanantai',ti:'Tiistai',ke:'Keskiviikko',to:'Torstai',pe:'Perjantai',la:'Lauantai',su:'Sunnuntai'};
+const CARDIO_MODES = ['Kävely','Pyöräily','Porraskone','Soutu','Muu'];
+
+/* ============================== TILA ============================== */
+const KEY = 'treenipaivakirja_v1';
+function mondayOf(d){ const x=new Date(d); const wd=(x.getDay()+6)%7; x.setDate(x.getDate()-wd); return x; }
+function iso(d){ const p=n=>String(n).padStart(2,'0'); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
+function fromIso(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function addDays(s,n){ const d=fromIso(s); d.setDate(d.getDate()+n); return iso(d); }
+function fmtFi(s){ const d=fromIso(s); return d.getDate()+'.'+(d.getMonth()+1)+'.'; }
+
+let state;
+try { state = JSON.parse(localStorage.getItem(KEY)) || null; } catch(e){ state = null; }
+if (!state) state = { start: iso(mondayOf(new Date())), deloadEvery: 4, sessions: {}, defaults: {} };
+if (!state.sessions) state.sessions = {};
+if (!state.defaults) state.defaults = {};
+if (!state.deloadEvery) state.deloadEvery = 4;
+
+let saveTimer=null;
+function save(quiet){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{
+    localStorage.setItem(KEY, JSON.stringify(state));
+    if(!quiet) toast('Tallennettu ✓');
+  }, 350);
+}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1400);
+}
+
+function weekNum(dateIso){
+  const a=mondayOf(fromIso(state.start)), b=mondayOf(fromIso(dateIso));
+  return Math.floor((b-a)/(7*864e5))+1;
+}
+function isDeload(dateIso){
+  const w=weekNum(dateIso);
+  return w>0 && w % state.deloadEvery === 0;
+}
+function dayKeyOf(dateIso){ return DAYS[(fromIso(dateIso).getDay()+6)%7]; }
+
+function getSession(dateIso){ return state.sessions[dateIso]; }
+function ensureSession(dateIso){
+  if(!state.sessions[dateIso]) state.sessions[dateIso] = { entries:{}, notes:'', steps:'', feel:null, done:false, cardio:{} };
+  return state.sessions[dateIso];
+}
+function ensureEntry(dateIso, ex){
+  const s=ensureSession(dateIso);
+  if(!s.entries[ex.id]){
+    const variant = state.defaults[ex.id] || ex.name;
+    s.entries[ex.id] = { name:variant, sets:Array.from({length:ex.sets},()=>({w:'',r:''})), feel:null };
+  }
+  return s.entries[ex.id];
+}
+function sessionDone(s, dk){
+  if(!s) return false;
+  if(s.done) return true;
+  if(s.cardio && s.cardio.kesto) return true;
+  return Object.values(s.entries||{}).some(e=>e.sets && e.sets.some(x=>x.r!=='' && x.r!=null));
+}
+
+/* Viimeisin kirjaus liikevariantille (nimen mukaan) ennen annettua päivää */
+function findLast(variantName, beforeIso){
+  const dates=Object.keys(state.sessions).filter(d=>d<beforeIso).sort().reverse();
+  for(const d of dates){
+    const s=state.sessions[d];
+    for(const e of Object.values(s.entries||{})){
+      if(e.name===variantName && e.sets && e.sets.some(x=>x.r!=='' && x.r!=null)){
+        return { date:d, sets:e.sets.filter(x=>x.r!=='' && x.r!=null), feel:e.feel };
+      }
+    }
+  }
+  return null;
+}
+function topWeight(sets){ return Math.max(...sets.map(x=>parseFloat(x.w)||0)); }
+function roundInc(v,inc){ return Math.round(v/inc)*inc; }
+
+function suggestion(ex, variantName, dateIso){
+  const last=findLast(variantName, dateIso);
+  const deload=isDeload(dateIso);
+  if(!last){
+    return { cls:'', txt: deload
+      ? 'Kevennysviikko — pidä kuormat reippaasti varman puolella.'
+      : 'Ensimmäinen kirjaus — hae sopiva aloituspaino tekniikka edellä.' };
+  }
+  const tw=topWeight(last.sets);
+  if(deload){
+    const dw = tw>0 ? roundInc(tw*0.65, 2.5) : 0;
+    return { cls:'deload', txt:'Kevennysviikko: noin '+(dw>0? dw+' kg' : 'selvästi kevyempi kuorma')+' — jätä 3–4 toistoa varastoon.' };
+  }
+  if(ex.maxSet){
+    const best=Math.max(...last.sets.map(x=>parseInt(x.r)||0));
+    return { cls:'', txt:'Tavoite: yli '+best+' '+(ex.unit||'toistoa')+' — keho tarvitsee uuden ärsykkeen.' };
+  }
+  const allTop = last.sets.length>=ex.sets && last.sets.every(x=>(parseInt(x.r)||0)>=ex.max);
+  if(allTop && tw>0){
+    return { cls:'', txt:'Viimeksi kaikki sarjat ylärajassa ('+ex.max+') → lisää painoa: kokeile '+(tw+ex.inc)+' kg.' };
+  }
+  const anyBelow = last.sets.some(x=>(parseInt(x.r)||0) < ex.min);
+  if(last.feel==='eraskas' || anyBelow){
+    return { cls:'', txt:'Viimeksi tuntui erittäin raskaalta' + (anyBelow?' / toistot jäivät alle '+ex.min:'') + ' → pidä '+(tw>0?tw+' kg':'sama paino')+' ja hio toistoja.' };
+  }
+  return { cls:'', txt:'Pidä '+(tw>0?tw+' kg':'sama paino')+' ja tavoittele +1 toisto per sarja.' };
+}
+function setsToStr(sets){
+  return sets.map(x=>{
+    const w=x.w!==''&&x.w!=null?x.w:null, r=x.r;
+    return w!=null ? (w+'×'+r) : String(r);
+  }).join(' · ');
+}
+
+/* ============================== UI ============================== */
+let tab='week';
+let selDate = iso(new Date());
+let histSel = '';
+
+const $view=document.getElementById('view');
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function h(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content; }
+
+function updateTopbar(){
+  const w=weekNum(selDate);
+  document.getElementById('weekbadge').textContent =
+    w>0 ? 'Viikko '+w+' · sykli '+(((Math.ceil(w/state.deloadEvery)-1)%1000)+1) : '';
+  document.getElementById('deloadpill').hidden = !isDeload(selDate);
+}
+
+function render(){
+  updateTopbar();
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  if(tab==='week') renderWeek();
+  else if(tab==='workout') renderWorkout();
+  else if(tab==='history') renderHistory();
+  else renderSettings();
+  window.scrollTo(0,0);
+}
+
+/* ---------- VIIKKO ---------- */
+function renderWeek(){
+  const mon=iso(mondayOf(fromIso(selDate)));
+  const today=iso(new Date());
+  const w=weekNum(mon);
+  let html='<div class="weeknav">'
+    + '<button class="ghost" id="wprev" aria-label="Edellinen viikko">‹</button>'
+    + '<h2>Viikko '+(w>0?w:'—')+' <span class="muted" style="font:400 14px -apple-system,sans-serif">'+fmtFi(mon)+'–'+fmtFi(addDays(mon,6))+'</span></h2>'
+    + '<button class="ghost" id="wnext" aria-label="Seuraava viikko">›</button></div>';
+  if(isDeload(mon)){
+    html+='<div class="deload-banner"><b>Kevennysviikko.</b> Pudota painot noin 65 %:iin, sama tekniikka ja liikelaajuus. Palautuminen tekee kasvun.</div>';
+  }
+  for(let i=0;i<7;i++){
+    const d=addDays(mon,i), dk=DAYS[i], p=PROGRAM[dk];
+    const s=getSession(d);
+    const done=sessionDone(s,dk);
+    let sub=p.sub;
+    if(s && done){
+      if(p.type==='gym'){
+        const n=Object.values(s.entries||{}).reduce((a,e)=>a+e.sets.filter(x=>x.r!==''&&x.r!=null).length,0);
+        sub=n+' sarjaa kirjattu'+(s.feel?' · '+FEELN[s.feel]:'');
+      } else if(p.type==='cardio' && s.cardio.kesto){
+        sub=(s.cardio.laji||'Cardio')+' '+s.cardio.kesto+' min'+(s.feel?' · '+FEELN[s.feel]:'');
+      } else sub='Tehty'+(s.feel?' · '+FEELN[s.feel]:'');
+    }
+    html+='<button class="daycard'+(d===today?' today':'')+'" data-date="'+d+'">'
+      +'<span class="dow">'+DOW[dk]+'<small>'+fmtFi(d)+'</small></span>'
+      +'<span class="what"><span class="nm">'+esc(p.title)+'</span><br><span class="sub">'+esc(sub)+'</span></span>'
+      +'<span class="status'+(done?' done':'')+'">'+(done?'✓':'')+'</span></button>';
+  }
+  html+='<details class="guide"><summary>Yleiset ohjeet (ohjelmasta)</summary><ul>'
+    +'<li>Juo vettä n. 2,5 l päivässä — edistää aineenvaihduntaa ja ruuansulatusta.</li>'
+    +'<li>Askeltavoite 10 000 / päivä, kerää pitkin päivää.</li>'
+    +'<li>Kirjaa treenit ylös — keho tarvitsee uuden ärsykkeen (paino tai toistot).</li>'
+    +'<li>Rasva palaa parhaiten kevyellä aerobisella (20 min riittää kerralla).</li>'
+    +'<li>Älä syö liikaa suolaa — sitoo nestettä.</li>'
+    +'<li>Syö tarpeeksi, erityisesti proteiinia ja kasviksia.</li>'
+    +'</ul></details>';
+  $view.innerHTML=html;
+  document.getElementById('wprev').onclick=()=>{ selDate=addDays(mon,-7); render(); };
+  document.getElementById('wnext').onclick=()=>{ selDate=addDays(mon,7); render(); };
+  $view.querySelectorAll('.daycard').forEach(b=>b.onclick=()=>{ selDate=b.dataset.date; tab='workout'; render(); });
+}
+
+/* ---------- TREENI ---------- */
+function feelButtons(cur, onPickAttr){
+  return '<div class="feels" '+onPickAttr+'>'+FEELS.map(f=>
+    '<button data-feel="'+f.k+'" class="'+(cur===f.k?'sel-'+f.k:'')+'">'+f.n+'</button>').join('')+'</div>';
+}
+
+function renderWorkout(){
+  const dk=dayKeyOf(selDate), p=PROGRAM[dk];
+  const deload=isDeload(selDate);
+  let html='<div class="dayhead"><h2>'+DOWFULL[dk]+' · '+esc(p.title)+'</h2>'
+    +'<div class="datebtns"><button id="dprev" aria-label="Edellinen päivä">‹</button>'
+    +'<input type="date" id="dpick" value="'+selDate+'" style="width:auto">'
+    +'<button id="dnext" aria-label="Seuraava päivä">›</button></div></div>'
+    +'<div class="muted">'+esc(p.sub)+' · '+fmtFi(selDate)+'</div>';
+  if(deload) html+='<div class="deload-banner"><b>Kevennysviikko:</b> noin 65 % normaalipainoista, jätä 3–4 toistoa varastoon. Kevyt viikko valmistaa seuraavaan nousuun.</div>';
+
+  const s=getSession(selDate);
+
+  if(p.type==='gym'){
+    for(const ex of p.ex){
+      const entry=(s&&s.entries[ex.id])||null;
+      const variant=(entry&&entry.name)||state.defaults[ex.id]||ex.name;
+      const variants=[ex.name,...ex.alts.map(a=>a.name)];
+      const vinfo = variant===ex.name ? ex : (ex.alts.find(a=>a.name===variant)||ex);
+      const last=findLast(variant, selDate);
+      const sug=suggestion(ex, variant, selDate);
+      const target= ex.maxSet ? (ex.sets+' × max') : (ex.sets+' × '+ex.min+'–'+ex.max);
+      const nsets = entry?entry.sets.length:ex.sets;
+
+      html+='<div class="card" data-ex="'+ex.id+'">'
+        +'<h3>'+esc(variant)+' <span class="muted" style="font:400 14px -apple-system,sans-serif;text-transform:none">'+target+'</span></h3>'
+        +'<div class="variant"><span class="swap">Variaatio:</span><select data-varsel>'
+        + variants.map(v=>'<option'+(v===variant?' selected':'')+'>'+esc(v)+'</option>').join('')
+        +'</select></div>'
+        +'<div class="tip">'+esc(vinfo.tip||ex.tip)+'</div>';
+
+      if(last){
+        html+='<div class="lastline">Viimeksi '+fmtFi(last.date)+': <b>'+esc(setsToStr(last.sets))+'</b>'
+          +(last.feel?' <span class="feel-tag feel-'+last.feel+'">'+FEELN[last.feel]+'</span>':'')+'</div>';
+      }
+      html+='<div class="suggest '+sug.cls+'">→ '+esc(sug.txt)+'</div>';
+
+      html+='<table class="sets">';
+      for(let i=0;i<nsets;i++){
+        const st=entry?entry.sets[i]:{w:'',r:''};
+        const wPh=last&&last.sets[i]&&last.sets[i].w!==''?last.sets[i].w:'kg';
+        const rPh=ex.maxSet?(ex.unit||'max'):(ex.min+'–'+ex.max);
+        html+='<tr><td>Sarja '+(i+1)+'</td>'
+          +(ex.maxSet&&ex.unit==='sek'
+            ? '<td></td>'
+            : '<td><input type="text" class="num" inputmode="decimal" autocomplete="off" enterkeyhint="next" data-set="'+i+'" data-f="w" placeholder="'+wPh+'" value="'+(st.w??'')+'"><span class="unit">kg</span></td>')
+          +'<td><input type="number" inputmode="numeric" step="1" min="0" enterkeyhint="done" data-set="'+i+'" data-f="r" placeholder="'+rPh+'" value="'+(st.r??'')+'"><span class="unit">'+(ex.unit||'toistoa')+'</span></td></tr>';
+      }
+      html+='</table><button class="addset" data-addset>+ lisäsarja</button>'
+        +'<div class="muted" style="margin-top:10px">Miltä tuntui?</div>'
+        + feelButtons(entry?entry.feel:null,'data-exfeel')
+        +'</div>';
+    }
+  } else if(p.type==='cardio'){
+    const c=(s&&s.cardio)||{};
+    const lastC=(()=>{ const ds=Object.keys(state.sessions).filter(d=>d<selDate&&dayKeyOf(d)===dk).sort().reverse();
+      for(const d of ds){ const x=state.sessions[d]; if(x.cardio&&x.cardio.kesto) return {date:d,...x.cardio, feel:x.feel}; } return null; })();
+    html+='<div class="card"><h3>Cardio</h3><div class="tip">'+esc(p.tip)+'</div>';
+    if(lastC) html+='<div class="lastline">Viimeksi '+fmtFi(lastC.date)+': <b>'+esc(lastC.laji||'')+' '+lastC.kesto+' min</b>'
+      +(lastC.syke?' · syke ~'+lastC.syke:'')+(lastC.feel?' <span class="feel-tag feel-'+lastC.feel+'">'+FEELN[lastC.feel]+'</span>':'')+'</div>';
+    html+='<div class="row2"><div class="field"><label>Laji</label><select data-cardio="laji">'
+      +CARDIO_MODES.map(m=>'<option'+(c.laji===m?' selected':'')+'>'+m+'</option>').join('')+'</select></div>'
+      +'<div class="field"><label>Kesto (min)</label><input type="number" inputmode="numeric" min="0" style="width:100%" data-cardio="kesto" value="'+(c.kesto??'')+'" placeholder="45–90"></div>'
+      +'<div class="field"><label>Keskisyke</label><input type="number" inputmode="numeric" min="0" style="width:100%" data-cardio="syke" value="'+(c.syke??'')+'" placeholder="valinn."></div></div>'
+      +'</div>';
+  } else {
+    html+='<div class="card"><h3>'+esc(p.title)+'</h3><div class="tip">'+esc(p.tip)+'</div>'
+      +'<label style="display:flex;align-items:center;gap:10px;font-size:15px;cursor:pointer">'
+      +'<input type="checkbox" data-donechk style="width:22px;height:22px" '+(s&&s.done?'checked':'')+'> Tehty!</label></div>';
+  }
+
+  /* päivän yhteiset kentät */
+  const feel=s?s.feel:null;
+  html+='<div class="card"><h3 style="font-size:17px">Päivän yhteenveto</h3>'
+    +'<div class="muted" style="margin-top:6px">Treenin kokonaisfiilis</div>'
+    + feelButtons(feel,'data-dayfeel')
+    +'<div class="row2" style="margin-top:10px"><div class="field"><label>Askeleet (tavoite 10 000)</label>'
+    +'<input type="number" inputmode="numeric" min="0" style="width:100%" data-steps value="'+((s&&s.steps)??'')+'" placeholder="esim. 10000"></div></div>'
+    +'<div class="field"><label>Muistiinpanot</label><textarea rows="2" data-notes placeholder="esim. uni, energiat, tekniikkahuomiot">'+esc((s&&s.notes)||'')+'</textarea></div>'
+    +'</div>';
+
+  $view.innerHTML=html;
+
+  /* sidonnat */
+  document.getElementById('dprev').onclick=()=>{ selDate=addDays(selDate,-1); render(); };
+  document.getElementById('dnext').onclick=()=>{ selDate=addDays(selDate,1); render(); };
+  document.getElementById('dpick').onchange=e=>{ if(e.target.value){ selDate=e.target.value; render(); } };
+
+  $view.querySelectorAll('.card[data-ex]').forEach(card=>{
+    const exId=card.dataset.ex;
+    const ex=p.ex.find(x=>x.id===exId);
+    card.querySelectorAll('input[data-set]').forEach(inp=>{
+      inp.addEventListener('input',()=>{
+        const e=ensureEntry(selDate,ex);
+        while(e.sets.length<=+inp.dataset.set) e.sets.push({w:'',r:''});
+        /* iOS: suomalainen näppäimistö antaa pilkun desimaalierottimeksi → normalisoi pisteeksi */
+        const v = inp.dataset.f==='w' ? inp.value.replace(/,/g,'.').replace(/[^\d.]/g,'').trim() : inp.value;
+        e.sets[+inp.dataset.set][inp.dataset.f]=v;
+        save();
+      });
+    });
+    const vs=card.querySelector('[data-varsel]');
+    vs.addEventListener('change',()=>{
+      const e=ensureEntry(selDate,ex);
+      e.name=vs.value;
+      state.defaults[exId]=vs.value;
+      save(true); render();
+    });
+    card.querySelector('[data-addset]').addEventListener('click',()=>{
+      const e=ensureEntry(selDate,ex);
+      while(e.sets.length<ex.sets) e.sets.push({w:'',r:''});
+      e.sets.push({w:'',r:''});
+      save(true); render();
+    });
+    card.querySelector('[data-exfeel]').querySelectorAll('button').forEach(b=>{
+      b.addEventListener('click',()=>{
+        const e=ensureEntry(selDate,ex);
+        e.feel = e.feel===b.dataset.feel ? null : b.dataset.feel;
+        save(); render();
+      });
+    });
+  });
+  $view.querySelectorAll('[data-cardio]').forEach(inp=>{
+    inp.addEventListener(inp.tagName==='SELECT'?'change':'input',()=>{
+      const s2=ensureSession(selDate);
+      s2.cardio[inp.dataset.cardio]=inp.value;
+      if(!s2.cardio.laji) s2.cardio.laji=CARDIO_MODES[0];
+      save();
+    });
+  });
+  const chk=$view.querySelector('[data-donechk]');
+  if(chk) chk.addEventListener('change',()=>{ ensureSession(selDate).done=chk.checked; save(); });
+  const dayFeelWrap=$view.querySelector('[data-dayfeel]');
+  if(dayFeelWrap) dayFeelWrap.querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const s2=ensureSession(selDate);
+      s2.feel = s2.feel===b.dataset.feel ? null : b.dataset.feel;
+      save(); render();
+    });
+  });
+  const steps=$view.querySelector('[data-steps]');
+  if(steps) steps.addEventListener('input',()=>{ ensureSession(selDate).steps=steps.value; save(); });
+  const notes=$view.querySelector('[data-notes]');
+  if(notes) notes.addEventListener('input',()=>{ ensureSession(selDate).notes=notes.value; save(); });
+}
+
+/* ---------- HISTORIA ---------- */
+function renderHistory(){
+  const names=new Set();
+  for(const s of Object.values(state.sessions))
+    for(const e of Object.values(s.entries||{}))
+      if(e.sets && e.sets.some(x=>x.r!==''&&x.r!=null)) names.add(e.name);
+  const list=[...names].sort();
+  if(!histSel || !names.has(histSel)) histSel=list[0]||'';
+
+  let html='<div class="dayhead"><h2>Historia</h2></div>';
+  if(!list.length){
+    html+='<div class="card muted">Ei vielä kirjauksia. Kirjaa ensimmäinen treeni Treeni-välilehdellä — historia ja kehitysehdotukset ilmestyvät tähän.</div>';
+    $view.innerHTML=html; return;
+  }
+  html+='<div class="field"><label>Liike</label><select id="histsel">'
+    +list.map(n=>'<option'+(n===histSel?' selected':'')+'>'+esc(n)+'</option>').join('')+'</select></div>';
+
+  const rows=[];
+  for(const [d,s] of Object.entries(state.sessions)){
+    for(const e of Object.values(s.entries||{})){
+      if(e.name===histSel){
+        const done=e.sets.filter(x=>x.r!==''&&x.r!=null);
+        if(done.length) rows.push({date:d, sets:done, feel:e.feel});
+      }
+    }
+  }
+  rows.sort((a,b)=>a.date<b.date?1:-1);
+
+  /* sparkline: kovimman sarjan paino ajassa */
+  const pts=rows.slice().reverse().map(r=>topWeight(r.sets)).filter(v=>v>0);
+  if(pts.length>1){
+    const W=520,H=70,P=6;
+    const mn=Math.min(...pts), mx=Math.max(...pts);
+    const sx=i=>P+i*(W-2*P)/(pts.length-1);
+    const sy=v=>mx===mn?H/2:H-P-(v-mn)*(H-2*P)/(mx-mn);
+    const poly=pts.map((v,i)=>sx(i).toFixed(1)+','+sy(v).toFixed(1)).join(' ');
+    const lastPt=sx(pts.length-1).toFixed(1)+','+sy(pts[pts.length-1]).toFixed(1);
+    html+='<svg class="spark" viewBox="0 0 '+W+' '+H+'" width="100%" height="70" role="img" aria-label="Kovimman sarjan paino ajassa">'
+      +'<polyline points="'+poly+'" fill="none" stroke="var(--accent)" stroke-width="2"/>'
+      +'<circle cx="'+lastPt.split(',')[0]+'" cy="'+lastPt.split(',')[1]+'" r="3.5" fill="var(--accent)"/>'
+      +'</svg><div class="muted" style="font-size:12px">Kovimman sarjan paino: '+mn+' → '+mx+' kg</div>';
+  }
+
+  html+='<table class="hist-table"><tr><th>Pvm</th><th>Sarjat (kg×toistot)</th><th>Tuntuma</th></tr>';
+  for(const r of rows){
+    html+='<tr><td>'+fmtFi(r.date)+'</td><td>'+esc(setsToStr(r.sets))+'</td>'
+      +'<td>'+(r.feel?'<span class="feel-tag feel-'+r.feel+'">'+FEELN[r.feel]+'</span>':'—')+'</td></tr>';
+  }
+  html+='</table>';
+  $view.innerHTML=html;
+  document.getElementById('histsel').onchange=e=>{ histSel=e.target.value; render(); };
+}
+
+/* ---------- ASETUKSET ---------- */
+function renderSettings(){
+  let html='<div class="dayhead"><h2>Asetukset</h2></div>'
+    +'<div class="card"><h3 style="font-size:17px">Ohjelman jaksotus</h3>'
+    +'<div class="field"><label>Ohjelman aloitusviikon maanantai</label>'
+    +'<input type="date" id="setstart" value="'+state.start+'"></div>'
+    +'<div class="field"><label>Kevennysviikko joka</label><select id="setdeload">'
+    +[4,5,6].map(n=>'<option value="'+n+'"'+(state.deloadEvery===n?' selected':'')+'>'+n+'. viikko</option>').join('')
+    +'</select></div>'
+    +'<div class="muted">Nousujohteisuus: kun kaikki sarjat osuvat toistohaarukan ylärajaan, ohjelma ehdottaa painon lisäystä. Kevennysviikolla ehdotetaan n. 65 % painoja — palautuminen mahdollistaa seuraavan nousun.</div></div>'
+    +'<div class="card"><h3 style="font-size:17px">iPhone-vinkki</h3>'
+    +'<div class="muted">Lisää päiväkirja Koti-valikkoon, niin se avautuu kuin sovellus: avaa sivu Safarissa → paina <b>Jaa</b>-kuvaketta → <b>Lisää Koti-valikkoon</b>. Käytä aina samaa selainta ja laitetta — kirjaukset tallentuvat laitekohtaisesti.</div></div>'
+    +'<div class="card"><h3 style="font-size:17px">Varmuuskopio</h3>'
+    +'<div class="muted" style="margin-bottom:10px">Tiedot tallentuvat tämän selaimen muistiin (localStorage). Ota JSON-varmuuskopio silloin tällöin — sen voi tuoda takaisin toisella laitteella tai selaimen tyhjennyksen jälkeen. Huom: Safari voi siivota sivuston tiedot, jos sivulla ei käydä moneen viikkoon — viikoittainen käyttö riittää pitämään ne tallessa.</div>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
+    +'<button class="primary" id="btnexport">Lataa varmuuskopio</button>'
+    +'<label class="ghost" style="display:inline-flex;align-items:center;cursor:pointer">Tuo varmuuskopio<input type="file" id="btnimport" accept=".json" hidden></label>'
+    +'</div></div>'
+    +'<div class="card"><h3 style="font-size:17px">Nollaus</h3>'
+    +'<div class="muted" style="margin-bottom:10px">Poistaa kaikki kirjaukset tästä selaimesta. Ota varmuuskopio ensin!</div>'
+    +'<button class="danger" id="btnreset">Tyhjennä kaikki tiedot</button></div>';
+  $view.innerHTML=html;
+
+  document.getElementById('setstart').onchange=e=>{
+    if(e.target.value){ state.start=iso(mondayOf(fromIso(e.target.value))); save(); updateTopbar(); }
+  };
+  document.getElementById('setdeload').onchange=e=>{ state.deloadEvery=+e.target.value; save(); updateTopbar(); };
+  document.getElementById('btnexport').onclick=()=>{
+    const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='treenipaivakirja-varmuuskopio.json';
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+  document.getElementById('btnimport').onchange=e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const rd=new FileReader();
+    rd.onload=()=>{
+      try{
+        const obj=JSON.parse(rd.result);
+        if(!obj || typeof obj.sessions!=='object') throw new Error('bad');
+        state=obj;
+        if(!state.defaults) state.defaults={};
+        if(!state.deloadEvery) state.deloadEvery=4;
+        localStorage.setItem(KEY, JSON.stringify(state));
+        toast('Varmuuskopio tuotu ✓'); render();
+      }catch(err){ toast('Tiedosto ei kelpaa — tarkista että se on tämän sovelluksen varmuuskopio.'); }
+    };
+    rd.readAsText(f);
+  };
+  document.getElementById('btnreset').onclick=()=>{
+    if(confirm('Poistetaanko kaikki kirjaukset pysyvästi tästä selaimesta?')){
+      state={ start: iso(mondayOf(new Date())), deloadEvery:4, sessions:{}, defaults:{} };
+      localStorage.setItem(KEY, JSON.stringify(state));
+      toast('Tiedot tyhjennetty'); render();
+    }
+  };
+}
+
+document.querySelectorAll('#tabs button').forEach(b=>{
+  b.addEventListener('click',()=>{ tab=b.dataset.tab; render(); });
+});
+render();
+</script>
+
+</body>
+</html>
