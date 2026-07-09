@@ -72,7 +72,8 @@
   }
   #tabs button{
     flex:1;max-width:150px;background:none;border:0;color:var(--muted);
-    font:600 13px/1 -apple-system,sans-serif;padding:10px 4px;border-radius:10px;cursor:pointer;
+    font:600 12px/1 -apple-system,sans-serif;padding:10px 2px;border-radius:10px;cursor:pointer;
+    white-space:nowrap;
   }
   #tabs button.active{color:var(--accent);background:var(--surface2)}
   #tabs button:focus-visible{outline:2px solid var(--accent)}
@@ -158,7 +159,10 @@
   .status.done{background:var(--f-kevyt);border-color:var(--f-kevyt);color:#04140d;font-weight:700}
   details.guide{margin:16px 0}
   details.guide summary{cursor:pointer;color:var(--muted);font-size:14px}
+  details.guide summary b{color:var(--text);font-size:15px}
   details.guide ul{color:var(--muted);font-size:14px;padding-left:20px}
+  details.guide li{margin:4px 0}
+  details.guide b{color:var(--text)}
   /* ---------- history ---------- */
   .hist-table{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
   .hist-table th{color:var(--muted);text-align:left;font-weight:500;font-size:12px;
@@ -204,7 +208,8 @@
   <main id="view"></main>
 </div>
 <nav id="tabs">
-  <button data-tab="week" class="active">📅 Viikko</button>
+  <button data-tab="home" class="active">🏠 Koti</button>
+  <button data-tab="week">📅 Viikko</button>
   <button data-tab="workout">🏋️ Treeni</button>
   <button data-tab="history">📈 Historia</button>
   <button data-tab="settings">⚙️ Asetukset</button>
@@ -444,7 +449,7 @@ function setsToStr(sets){
 }
 
 /* ============================== UI ============================== */
-let tab='week';
+let tab='home';
 let selDate = iso(new Date());
 let histSel = '';
 
@@ -462,11 +467,86 @@ function updateTopbar(){
 function render(){
   updateTopbar();
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
-  if(tab==='week') renderWeek();
+  if(tab==='home') renderHome();
+  else if(tab==='week') renderWeek();
   else if(tab==='workout') renderWorkout();
   else if(tab==='history') renderHistory();
   else renderSettings();
   window.scrollTo(0,0);
+}
+
+/* ---------- KOTI ---------- */
+function renderHome(){
+  const mon=iso(mondayOf(new Date()));
+  const lastMon=addDays(mon,-7);
+  const ws=weekSummary(lastMon);
+  const cur=weekSummary(mon);
+  let total=0;
+  for(const [d,s] of Object.entries(state.sessions)) if(sessionDone(s,dayKeyOf(d))) total++;
+
+  let msg;
+  if(cur.done>0) msg='Tällä viikolla jo '+cur.done+' treeniä kirjattu — hyvä vire! 💪';
+  else if(ws.done>=4) msg='Viime viikolla '+ws.done+' treeniä — huikeaa työtä! Jatka samaan malliin 🔥';
+  else if(ws.done>0) msg='Viime viikolla '+ws.done+' treeniä kirjattu. Tämä viikko on uusi mahdollisuus — aloita tänään!';
+  else if(total>0) msg='Tervetuloa takaisin! Paras hetki jatkaa on tänään 💪';
+  else msg='Tervetuloa! Aloita ensimmäinen treenisi Viikko-välilehdeltä 💪';
+
+  let html='<div class="dayhead"><h2>Tervetuloa</h2></div>'
+    +'<div class="card"><div style="font-size:16px;font-weight:600">'+esc(msg)+'</div>'
+    +'<div class="statgrid">'
+    +statBox(ws.done,'treeniä viime viikolla')
+    +statBox(ws.setCount,'sarjaa viime viikolla')
+    +statBox(ws.stepDays? ws.stepOk+'/'+ws.stepDays : '—','askeltavoite täynnä')
+    +statBox(ws.improved.length,'liikkeen paino nousi')
+    +'</div>'
+    +(ws.improved.length?'<div class="muted" style="margin-top:8px">📈 Nousseet: '+ws.improved.map(esc).join(', ')+'</div>':'')
+    +'<div class="muted" style="margin-top:8px">Yhteensä kirjattu '+total+' treeniä.</div>'
+    +'<button class="primary" id="gotoworkout" style="margin-top:12px;width:100%">Avaa päivän treeni →</button>'
+    +'</div>';
+
+  html+='<div class="dayhead" style="margin-top:20px"><h2>Valmentajan ohjeet</h2></div>'
+
+    +'<details class="guide card" style="margin:8px 0"><summary><b>💪 Treenaamisen periaatteet</b></summary><ul>'
+    +'<li><b>Nousujohteisuus:</b> kun kaikki sarjat osuvat toistohaarukan ylärajaan, lisää painoa. Päiväkirja ehdottaa tämän puolestasi.</li>'
+    +'<li><b>Tekniikka edellä:</b> hidas, hallittu alasmeno kehittää eniten. Mieluummin kevyempi paino puhtaasti kuin raskas huonosti.</li>'
+    +'<li><b>Kirjaa jokainen treeni</b> — keho tarvitsee uuden ärsykkeen (paino tai toistot), ja kirjaamalla näet kehityksesi.</li>'
+    +'<li><b>Kevennysviikko joka 4. viikko</b> (n. 65 % painot) ei ole laiskottelua — palautuminen tekee kasvun.</li>'
+    +'<li><b>Lepopäivä on osa ohjelmaa.</b> Venyttely ja kehonhuolto edistävät palautumista ja aineenvaihduntaa.</li>'
+    +'</ul></details>'
+
+    +'<details class="guide card" style="margin:8px 0"><summary><b>🥗 Ravinto ja helpot reseptit</b></summary><ul>'
+    +'<li>Juo vettä noin <b>2,5 litraa päivässä</b> — edistää aineenvaihduntaa ja ruuansulatusta.</li>'
+    +'<li><b>Proteiinia joka aterialle</b> (noin kämmenen kokoinen annos).</li>'
+    +'<li>Kasviksia joka aterialle — niissä on myös paljon vettä.</li>'
+    +'<li>Vältä liikaa suolaa — se sitoo nestettä.</li>'
+    +'<li><b>Syö tarpeeksi:</b> kun syöt kunnolla puhdasta ruokaa, herkkuhimo vähenee itsestään.</li>'
+    +'</ul>'
+    +'<div style="font-weight:600;margin:6px 0 4px">Helpot arkireseptit:</div><ul>'
+    +'<li><b>Proteiinismoothie:</b> maitorahka + marjat + banaani + maito. Valmis 2 minuutissa.</li>'
+    +'<li><b>Arkisalaatti:</b> kanaa tai tonnikalaa + salaatti, tomaatti, kurkku + oliiviöljy + ruisleipä.</li>'
+    +'<li><b>Uunilohi:</b> lohi + bataatti + parsakaali pellillä, 200 °C n. 20 min.</li>'
+    +'<li><b>Iltapala:</b> raejuusto + hedelmä, tai kourallinen pähkinöitä.</li>'
+    +'</ul></details>'
+
+    +'<details class="guide card" style="margin:8px 0"><summary><b>🚶 Arki ja elämäntapa</b></summary><ul>'
+    +'<li><b>Askeltavoite 10 000/päivä</b> — kerää askeleita pitkin päivää ja kirjaa ne päiväkirjaan.</li>'
+    +'<li>Rasva palaa parhaiten <b>kevyellä aerobisella</b> (noin 60–70 % maksimisykkeestä). 20 minuutin kävely riittää kerralla — ennen tai jälkeen treenin.</li>'
+    +'<li><b>Nuku riittävästi</b> — kehitys tapahtuu levossa, ei salilla.</li>'
+    +'<li>YouTubesta löytyy hyviä kehonhuoltovideoita lepopäiville.</li>'
+    +'</ul></details>'
+
+    +'<details class="guide card" style="margin:8px 0"><summary><b>📖 Näin täytät päiväkirjaa</b></summary><ul>'
+    +'<li>Avaa <b>Viikko</b> ja napauta päivän korttia — liikkeet ovat valmiina.</li>'
+    +'<li>Kirjaa jokaisesta sarjasta <b>paino ja toistot</b>. Sovellus muistaa ne ja ehdottaa seuraavalla kerralla etenemistä.</li>'
+    +'<li>Valitse <b>"Miltä tuntui?"</b> — tuntuma ohjaa ehdotuksia ja kertoo valmentajalle treenin tehosta.</li>'
+    +'<li>Vaihda liikettä <b>Variaatio-valikosta</b>, jos laite on varattu tai liike ei sovi.</li>'
+    +'<li>Kirjaa <b>askeleet ja muistiinpanot</b> Päivän yhteenvetoon.</li>'
+    +'<li><b>Historia</b>-välilehdeltä näet kehityksen, ennätykset ja viikkokoosteen.</li>'
+    +'<li>Ota <b>varmuuskopio</b> silloin tällöin (Asetukset → Lataa varmuuskopio).</li>'
+    +'</ul></details>';
+
+  $view.innerHTML=html;
+  document.getElementById('gotoworkout').onclick=()=>{ selDate=iso(new Date()); tab='workout'; render(); };
 }
 
 /* ---------- VIIKKO ---------- */
@@ -499,14 +579,7 @@ function renderWeek(){
       +'<span class="what"><span class="nm">'+esc(p.title)+'</span><br><span class="sub">'+esc(sub)+'</span></span>'
       +'<span class="status'+(done?' done':'')+'">'+(done?'✓':'')+'</span></button>';
   }
-  html+='<details class="guide"><summary>Yleiset ohjeet (ohjelmasta)</summary><ul>'
-    +'<li>Juo vettä n. 2,5 l päivässä — edistää aineenvaihduntaa ja ruuansulatusta.</li>'
-    +'<li>Askeltavoite 10 000 / päivä, kerää pitkin päivää.</li>'
-    +'<li>Kirjaa treenit ylös — keho tarvitsee uuden ärsykkeen (paino tai toistot).</li>'
-    +'<li>Rasva palaa parhaiten kevyellä aerobisella (20 min riittää kerralla).</li>'
-    +'<li>Älä syö liikaa suolaa — sitoo nestettä.</li>'
-    +'<li>Syö tarpeeksi, erityisesti proteiinia ja kasviksia.</li>'
-    +'</ul></details>';
+  html+='<div class="muted" style="margin:14px 0">Valmentajan ohjeet ja reseptit löydät Koti-välilehdeltä.</div>';
   $view.innerHTML=html;
   document.getElementById('wprev').onclick=()=>{ selDate=addDays(mon,-7); render(); };
   document.getElementById('wnext').onclick=()=>{ selDate=addDays(mon,7); render(); };
