@@ -30,7 +30,16 @@
   }
   button,input,select,textarea{touch-action:manipulation}
   button{-webkit-user-select:none;user-select:none}
+  /* Brändin taustamonogrammi (KN = Kia Norring) */
+  body::before{
+    content:"KN";
+    position:fixed;right:-6vw;top:6vh;z-index:0;
+    font-family:var(--disp);font-weight:700;font-size:min(52vh,64vw);
+    letter-spacing:-.06em;line-height:1;color:var(--accent);opacity:.05;
+    pointer-events:none;-webkit-user-select:none;user-select:none;
+  }
   #app{
+    position:relative;z-index:1;
     max-width:600px;margin:0 auto;
     padding:0 max(14px, env(safe-area-inset-left)) calc(84px + env(safe-area-inset-bottom));
   }
@@ -43,6 +52,11 @@
   #topbar h1{
     margin:0;font-family:var(--disp);font-weight:700;font-size:26px;
     text-transform:uppercase;letter-spacing:.06em;
+  }
+  #topbar .brand{
+    font-family:var(--disp);font-size:12px;font-weight:600;
+    text-transform:uppercase;letter-spacing:.32em;color:var(--accent);
+    margin-top:1px;
   }
   #weekbadge{color:var(--muted);font-size:14px}
   .deload-pill{
@@ -176,7 +190,10 @@
 
 <div id="app">
   <header id="topbar">
-    <h1>Treenipäiväkirja</h1>
+    <div>
+      <h1>Treenipäiväkirja</h1>
+      <div class="brand">Kia Norring Training</div>
+    </div>
     <span id="weekbadge"></span>
     <span id="deloadpill" class="deload-pill" hidden>Kevennysviikko</span>
   </header>
@@ -206,7 +223,7 @@ const PROGRAM = {
     { id:'mave', name:'Maastaveto', sets:3, min:6, max:8, inc:5,
       tip:'Voimaliike — tee isolla kuormalla. Kun toistot lähenevät kahdeksaa, lisää painoa. Selkä suorana, tanko lähellä sääriä.',
       alts:[
-        {name:'Rommilainen maastaveto (RDL)', tip:'Pienempi polvikulma, venytys takareisiin. Hidas alasmeno, selkä suorana.'},
+        {name:'Romanialainen maastaveto (RDL)', tip:'Pienempi polvikulma, venytys takareisiin. Hidas alasmeno, selkä suorana.'},
         {name:'Trap bar -maastaveto', tip:'Neutraali ote, pystympi asento. Sama voima-ajatus: raskas kuorma, siisti tekniikka.'},
       ]},
     { id:'prassi', name:'Jalkaprässi', sets:3, min:8, max:10, inc:5,
