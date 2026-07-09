@@ -58,6 +58,20 @@
     text-transform:uppercase;letter-spacing:.32em;color:var(--accent);
     margin-top:1px;
   }
+  .knlogo{
+    margin-left:auto;align-self:center;
+    font-family:var(--disp);font-weight:700;font-size:19px;line-height:1;
+    color:var(--accent);border:2px solid var(--accent);border-radius:9px;
+    padding:5px 8px 4px;letter-spacing:.01em;
+  }
+  a.btn-primary{
+    display:block;background:var(--accent);color:var(--accent-ink);text-decoration:none;
+    font-weight:700;text-align:center;border-radius:8px;padding:12px 16px;font-size:15px;
+  }
+  a.btn-ghost{
+    display:block;background:var(--surface2);color:var(--text);text-decoration:none;
+    border:1px solid var(--line);text-align:center;border-radius:8px;padding:11px 16px;font-size:15px;
+  }
   #weekbadge{color:var(--muted);font-size:14px}
   .deload-pill{
     background:var(--teal);color:#062a28;font-weight:700;font-size:12px;
@@ -204,6 +218,7 @@
     </div>
     <span id="weekbadge"></span>
     <span id="deloadpill" class="deload-pill" hidden>Kevennysviikko</span>
+    <div class="knlogo" aria-hidden="true">KN</div>
   </header>
   <main id="view"></main>
 </div>
@@ -367,6 +382,33 @@ function toast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
   clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1400);
+}
+
+/* ============================== VALMENTAJAYHTEYS ============================== */
+/* TODO Sakari: vaihda Kian oikea sähköposti ja ajanvarauslinkki (esim. Calendly
+   tai Stripe Payment Link) kun ne ovat olemassa. Tyhjä varaaAikaUrl → nappi
+   käyttää sähköpostia. */
+const COACH = {
+  nimi: 'Kia Norring',
+  email: 'sakari.teljomaa@gmail.com',
+  varaaAikaUrl: ''
+};
+function coachMailBody(){
+  const lastMon=addDays(iso(mondayOf(new Date())),-7);
+  const ws=weekSummary(lastMon);
+  return encodeURIComponent(
+    'Hei '+COACH.nimi.split(' ')[0]+'!\n\n(kirjoita viestisi tähän)\n\n'
+    +'— Viikkokoosteeni '+fmtFi(lastMon)+'–'+fmtFi(addDays(lastMon,6))+': '
+    +ws.done+' treeniä, '+ws.setCount+' sarjaa'
+    +(ws.improved.length?', painot nousivat: '+ws.improved.join(', '):'')
+    +'\nLähetetty Kia Norring Training -treenipäiväkirjasta');
+}
+function varaaAikaHref(){
+  if(COACH.varaaAikaUrl) return COACH.varaaAikaUrl;
+  return 'mailto:'+COACH.email+'?subject='+encodeURIComponent('Ajanvaraus: henkilökohtainen valmennus')+'&body='+coachMailBody();
+}
+function kysyHref(){
+  return 'mailto:'+COACH.email+'?subject='+encodeURIComponent('Kysymys valmentajalle')+'&body='+coachMailBody();
 }
 
 /* ============================== PILVI (Supabase) ============================== */
@@ -602,6 +644,14 @@ function renderHome(){
     +'<div class="muted" style="margin-top:8px">Yhteensä kirjattu '+total+' treeniä.</div>'
     +'<button class="primary" id="gotoworkout" style="margin-top:12px;width:100%">Avaa päivän treeni →</button>'
     +'</div>';
+
+  /* Valmennuspalvelut */
+  html+='<div class="card"><h3 style="font-size:17px">⭐ Henkilökohtainen valmennus</h3>'
+    +'<div class="muted" style="margin:6px 0 12px">Haluatko viedä treenisi pidemmälle? Varaa Kialta henkilökohtainen valmennusaika — tekniikan hionta, ohjelman räätälöinti tai PT-treeni yhdessä. Voit myös lähettää kysymyksen: viestiin liitetään viikkokoosteesi automaattisesti, jotta valmentaja näkee tilanteesi.</div>'
+    +'<div style="display:grid;gap:8px">'
+    +'<a class="btn-primary" href="'+varaaAikaHref()+'">Varaa aika →</a>'
+    +'<a class="btn-ghost" href="'+kysyHref()+'">💬 Kysy valmentajalta</a>'
+    +'</div></div>';
 
   html+='<div class="dayhead" style="margin-top:20px"><h2>Valmentajan ohjeet</h2></div>'
 
