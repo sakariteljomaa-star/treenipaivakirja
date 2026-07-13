@@ -397,6 +397,7 @@ function toast(msg){
 const COACH = {
   nimi: 'Kia Norring',
   email: 'kianorring04@gmail.com',
+  ig: 'https://www.instagram.com/norringkia/',
   varaaAikaUrl: ''
 };
 function coachMailBody(){
@@ -662,6 +663,7 @@ function renderHome(){
     +'<div style="display:grid;gap:8px">'
     +'<a class="btn-primary" href="'+varaaAikaHref()+'">Varaa aika →</a>'
     +'<a class="btn-ghost" href="'+kysyHref()+'">💬 Kysy valmentajalta</a>'
+    +'<a class="btn-ghost" href="'+COACH.ig+'" target="_blank" rel="noopener">📸 Seuraa Instagramissa · @norringkia</a>'
     +'</div></div>';
 
   html+='<div class="dayhead" style="margin-top:20px"><h2>Valmentajan ohjeet</h2></div>'
