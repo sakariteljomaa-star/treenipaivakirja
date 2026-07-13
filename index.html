@@ -171,6 +171,7 @@
   .status{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);
     display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
   .status.done{background:var(--f-kevyt);border-color:var(--f-kevyt);color:#04140d;font-weight:700}
+  .status.skip{background:none;border-color:var(--line);color:var(--muted);font-weight:700}
   details.guide{margin:16px 0}
   details.guide summary{cursor:pointer;color:var(--muted);font-size:14px}
   details.guide summary b{color:var(--text);font-size:15px}
@@ -241,6 +242,12 @@ const FEELS = [
   {k:'eraskas', n:'Erittäin raskas'},
 ];
 const FEELN = Object.fromEntries(FEELS.map(f=>[f.k,f.n]));
+const SKIPS = [
+  {k:'sairas', n:'Sairaana'},
+  {k:'matka',  n:'Matkoilla'},
+  {k:'muu',    n:'Muu syy'},
+];
+const SKIPN = Object.fromEntries(SKIPS.map(x=>[x.k,x.n]));
 
 const PROGRAM = {
   ma: { title:'Alakroppa', sub:'Viikon raskain salitreeni', type:'gym', ex:[
@@ -385,12 +392,11 @@ function toast(msg){
 }
 
 /* ============================== VALMENTAJAYHTEYS ============================== */
-/* TODO Sakari: vaihda Kian oikea sähköposti ja ajanvarauslinkki (esim. Calendly
-   tai Stripe Payment Link) kun ne ovat olemassa. Tyhjä varaaAikaUrl → nappi
-   käyttää sähköpostia. */
+/* Ajanvarauslinkki (esim. Calendly tai Stripe Payment Link) lisätään kun se on
+   olemassa. Tyhjä varaaAikaUrl → nappi käyttää sähköpostia. */
 const COACH = {
   nimi: 'Kia Norring',
-  email: 'sakari.teljomaa@gmail.com',
+  email: 'kianorring04@gmail.com',
   varaaAikaUrl: ''
 };
 function coachMailBody(){
@@ -630,6 +636,7 @@ function renderHome(){
 
   let msg;
   if(cur.done>0) msg='Tällä viikolla jo '+cur.done+' treeniä kirjattu — hyvä vire! 💪';
+  else if(ws.done===0 && ws.skipped>0) msg='Viime viikolla oli ohituksia — se kuuluu elämään. Tämä viikko aloitetaan puhtaalta pöydältä 💛';
   else if(ws.done>=4) msg='Viime viikolla '+ws.done+' treeniä — huikeaa työtä! Jatka samaan malliin 🔥';
   else if(ws.done>0) msg='Viime viikolla '+ws.done+' treeniä kirjattu. Tämä viikko on uusi mahdollisuus — aloita tänään!';
   else if(total>0) msg='Tervetuloa takaisin! Paras hetki jatkaa on tänään 💪';
@@ -644,6 +651,7 @@ function renderHome(){
     +statBox(ws.improved.length,'liikkeen paino nousi')
     +'</div>'
     +(ws.improved.length?'<div class="muted" style="margin-top:8px">📈 Nousseet: '+ws.improved.map(esc).join(', ')+'</div>':'')
+    +(ws.skipped?'<div class="muted" style="margin-top:8px">⊘ '+ws.skipped+' päivää ohitettu viime viikolla — ei haittaa, jatketaan tästä.</div>':'')
     +'<div class="muted" style="margin-top:8px">Yhteensä kirjattu '+total+' treeniä.</div>'
     +'<button class="primary" id="gotoworkout" style="margin-top:12px;width:100%">Avaa päivän treeni →</button>'
     +'</div>';
@@ -714,11 +722,15 @@ function renderWeek(){
     html+='<div class="deload-banner"><b>Kevennysviikko.</b> Pudota painot noin 65 %:iin, sama tekniikka ja liikelaajuus. Palautuminen tekee kasvun.</div>';
   }
   for(let i=0;i<7;i++){
-    const d=addDays(mon,i), dk=DAYS[i], p=PROGRAM[dk];
+    const d=addDays(mon,i), dk=DAYS[i];
     const s=getSession(d);
+    const p=(s&&s.tmpl&&PROGRAM[s.tmpl])||PROGRAM[dk];
+    const siirretty=!!(s&&s.tmpl&&s.tmpl!==dk);
     const done=sessionDone(s,dk);
+    const skipped=s&&s.skipped;
     let sub=p.sub;
-    if(s && done){
+    if(skipped){ sub='Ohitettu — '+SKIPN[skipped]; }
+    else if(s && done){
       if(p.type==='gym'){
         const n=Object.values(s.entries||{}).reduce((a,e)=>a+e.sets.filter(x=>x.r!==''&&x.r!=null).length,0);
         sub=n+' sarjaa kirjattu'+(s.feel?' · '+FEELN[s.feel]:'');
@@ -726,10 +738,11 @@ function renderWeek(){
         sub=(s.cardio.laji||'Cardio')+' '+s.cardio.kesto+' min'+(s.feel?' · '+FEELN[s.feel]:'');
       } else sub='Tehty'+(s.feel?' · '+FEELN[s.feel]:'');
     }
+    if(siirretty && !skipped) sub+=' · siirretty';
     html+='<button class="daycard'+(d===today?' today':'')+'" data-date="'+d+'">'
       +'<span class="dow">'+DOW[dk]+'<small>'+fmtFi(d)+'</small></span>'
       +'<span class="what"><span class="nm">'+esc(p.title)+'</span><br><span class="sub">'+esc(sub)+'</span></span>'
-      +'<span class="status'+(done?' done':'')+'">'+(done?'✓':'')+'</span></button>';
+      +'<span class="status'+(done?' done':skipped?' skip':'')+'">'+(done?'✓':skipped?'⊘':'')+'</span></button>';
   }
   html+='<div class="muted" style="margin:14px 0">Valmentajan ohjeet ja reseptit löydät Koti-välilehdeltä.</div>';
   $view.innerHTML=html;
@@ -745,9 +758,13 @@ function feelButtons(cur, onPickAttr){
 }
 
 function renderWorkout(){
-  const dk=dayKeyOf(selDate), p=PROGRAM[dk];
+  const naturalDk=dayKeyOf(selDate);
+  const s0=getSession(selDate);
+  const dk=(s0&&s0.tmpl)||naturalDk;
+  const p=PROGRAM[dk];
+  const skipped=s0&&s0.skipped;
   const deload=isDeload(selDate);
-  let html='<div class="dayhead"><h2>'+DOWFULL[dk]+' · '+esc(p.title)+'</h2>'
+  let html='<div class="dayhead"><h2>'+DOWFULL[naturalDk]+' · '+esc(p.title)+'</h2>'
     +'<div class="datebtns"><button id="dprev" aria-label="Edellinen päivä">‹</button>'
     +'<input type="date" id="dpick" value="'+selDate+'" style="width:auto">'
     +'<button id="dnext" aria-label="Seuraava päivä">›</button></div></div>'
@@ -756,7 +773,28 @@ function renderWorkout(){
 
   const s=getSession(selDate);
 
-  if(p.type==='gym'){
+  if(skipped){
+    html+='<div class="card"><h3 style="font-size:17px">⊘ Päivä ohitettu — '+SKIPN[skipped]+'</h3>'
+      +(skipped==='sairas'
+        ? '<div class="muted" style="margin:6px 0 12px">Lepo on nyt treeniäsi. Juo vettä, nuku hyvin ja palaa kevennetyillä painoilla kun olo on parempi. 💛</div>'
+        : '<div class="muted" style="margin:6px 0 12px">Ei haittaa — jatka seuraavana treenipäivänä siitä mihin jäit. Halutessasi voit siirtää tämän treenin toiselle päivälle perumalla ohituksen.</div>')
+      +'<button class="ghost" id="unskip">Peru ohitus</button></div>';
+  } else {
+    html+='<div class="card" style="padding:12px 14px">'
+      +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+      +'<span class="muted" style="font-size:13px;white-space:nowrap">Tänään tehdään:</span>'
+      +'<select id="tmplsel" style="flex:1;width:auto;font-size:14px;padding:7px 8px">'
+      +DAYS.map(k=>'<option value="'+k+'"'+(k===dk?' selected':'')+'>'+esc(PROGRAM[k].title)+(k===naturalDk?' (päivän ohjelma)':'')+'</option>').join('')
+      +'</select></div>'
+      +(dk!==naturalDk?'<div class="muted" style="font-size:12px;margin-top:6px">Siirretty treeni — päivän omassa ohjelmassa olisi: '+esc(PROGRAM[naturalDk].title)+'</div>':'')
+      +'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:10px">'
+      +'<span class="muted" style="font-size:13px">Jätä väliin:</span>'
+      +SKIPS.map(x=>'<button class="ghost" data-skip="'+x.k+'" style="padding:5px 10px;font-size:13px">'+x.n+'</button>').join('')
+      +'</div></div>';
+  }
+
+  if(skipped){ /* ohitettu päivä: ei treenikortteja */ }
+  else if(p.type==='gym'){
     for(const ex of p.ex){
       const entry=(s&&s.entries[ex.id])||null;
       const variant=(entry&&entry.name)||state.defaults[ex.id]||ex.name;
@@ -831,6 +869,21 @@ function renderWorkout(){
   document.getElementById('dnext').onclick=()=>{ selDate=addDays(selDate,1); render(); };
   document.getElementById('dpick').onchange=e=>{ if(e.target.value){ selDate=e.target.value; render(); } };
 
+  const tsel=document.getElementById('tmplsel');
+  if(tsel) tsel.onchange=()=>{
+    const s2=ensureSession(selDate);
+    if(tsel.value===naturalDk) delete s2.tmpl; else s2.tmpl=tsel.value;
+    save(true); render(true);
+  };
+  $view.querySelectorAll('[data-skip]').forEach(b=>{
+    b.addEventListener('click',()=>{
+      ensureSession(selDate).skipped=b.dataset.skip;
+      save(); render(true);
+    });
+  });
+  const us=document.getElementById('unskip');
+  if(us) us.onclick=()=>{ delete getSession(selDate).skipped; save(); render(true); };
+
   $view.querySelectorAll('.card[data-ex]').forEach(card=>{
     const exId=card.dataset.ex;
     const ex=p.ex.find(x=>x.id===exId);
@@ -894,11 +947,12 @@ function statBox(v,l){ return '<div class="stat"><b>'+v+'</b><span>'+l+'</span><
 
 /* Viikon tunnusluvut: treenit, sarjat, askeltavoite, nousseet painot */
 function weekSummary(monIso){
-  let done=0, setCount=0, stepDays=0, stepOk=0;
+  let done=0, setCount=0, stepDays=0, stepOk=0, skipped=0;
   const weekTop={};
   for(let i=0;i<7;i++){
     const d=addDays(monIso,i), s=state.sessions[d];
     if(!s) continue;
+    if(s.skipped) skipped++;
     if(sessionDone(s, dayKeyOf(d))) done++;
     if(s.steps){ stepDays++; if((parseInt(s.steps)||0)>=10000) stepOk++; }
     for(const e of Object.values(s.entries||{})){
@@ -922,7 +976,7 @@ function weekSummary(monIso){
     }
     if(prev>0 && tw>prev) improved.push(name);
   }
-  return {done, setCount, stepDays, stepOk, improved};
+  return {done, setCount, stepDays, stepOk, improved, skipped};
 }
 
 function renderHistory(){
@@ -946,6 +1000,7 @@ function renderHistory(){
     +statBox(ws.improved.length,'liikkeen paino nousi')
     +'</div>'
     +(ws.improved.length?'<div class="muted" style="margin-top:8px">📈 Nousseet: '+ws.improved.map(esc).join(', ')+'</div>':'')
+    +(ws.skipped?'<div class="muted" style="margin-top:8px">⊘ Ohitettuja päiviä: '+ws.skipped+'</div>':'')
     +'</div>';
 
   if(!list.length){
