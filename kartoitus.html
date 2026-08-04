@@ -68,8 +68,9 @@
     font:700 17px var(--disp);text-transform:uppercase;letter-spacing:.05em;
   }
   #send{background:var(--accent);color:var(--accent-ink);margin-bottom:10px}
-  #copy{background:var(--surface2);color:var(--text);border:1px solid var(--line);
+  #copy,#gmail{background:var(--surface2);color:var(--text);border:1px solid var(--line);
     font-size:14px;text-transform:none;letter-spacing:0;font-family:-apple-system,sans-serif;font-weight:600}
+  #gmail{margin-bottom:10px}
   #msg{margin:12px 0 0;font-size:14px;color:var(--teal);min-height:20px;text-align:center}
   .req{color:var(--accent)}
 </style>
@@ -184,6 +185,7 @@
     </div>
 
     <button type="button" id="send">Lähetä vastaukset Kialle →</button>
+    <button type="button" id="gmail">Avaa Gmail selaimessa →</button>
     <button type="button" id="copy">Tai kopioi vastaukset ja lähetä itse (esim. WhatsApp)</button>
     <div id="msg" role="status"></div>
   </form>
@@ -259,7 +261,17 @@ document.getElementById('send').addEventListener('click', () => {
     + '&body=' + encodeURIComponent(body);
   window.location.href = url;
   document.getElementById('msg').textContent =
-    'Sähköpostisovellus avautuu — paina siellä vielä Lähetä. Jos mitään ei tapahtunut, käytä alempaa kopiointinappia.';
+    'Sähköpostisovellus avautuu — paina siellä vielä Lähetä. Jos mitään ei tapahtunut, kokeile Gmail-nappia tai kopiointia alta.';
+});
+
+document.getElementById('gmail').addEventListener('click', () => {
+  if(!tarkista()) return;
+  const body = koosta();
+  const url = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(COACH_EMAIL)
+    + '&su=' + encodeURIComponent('Alkukartoitus — ' + val('nimi'))
+    + '&body=' + encodeURIComponent(body);
+  window.open(url, '_blank');
+  document.getElementById('msg').textContent = 'Gmail avautuu uuteen välilehteen — paina siellä vielä Lähetä.';
 });
 
 document.getElementById('copy').addEventListener('click', async () => {
