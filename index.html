@@ -543,6 +543,19 @@ async function sbSendLink(email){
     body:JSON.stringify({email:email, create_user:true})});
   if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error(j.msg||j.error_description||('HTTP '+r.status)); }
 }
+/* Kirjautuminen sähköpostin 6-numeroisella koodilla — istunto syntyy juuri tähän
+   selaimeen/kuvakkeeseen. Tarvitaan, koska iPhonen Koti-valikon sovelluksella on oma
+   muisti: sähköpostin linkki avautuu Safariin, ei kuvakkeeseen. */
+async function sbVerifyCode(email, code){
+  const r=await fetch(SB_URL+'/auth/v1/verify',{
+    method:'POST', headers:{apikey:SB_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({type:'email', email:email, token:code})});
+  if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error(j.msg||j.error_description||('HTTP '+r.status)); }
+  const j=await r.json();
+  sbSession={access_token:j.access_token, refresh_token:j.refresh_token, user:j.user||null};
+  saveAuth(); synkkaTila='tarkistetaan'; render();
+  await cloudBoot();
+}
 async function sbRefresh(){
   if(!sbSession||!sbSession.refresh_token) return false;
   try{
@@ -584,8 +597,12 @@ async function pushPr(liike, pr){
 }
 /* Jaksotus (aloitusviikko, kevennysväli, kevennysviikon siirrot syineen) pilveen —
    valmentaja näkee asiakkaan ohjelmaviikon ja siirretyt kevennysviikot. */
-async function pushSykli(){
+async function pushSykli(pakota){
   if(!cloudOn()) return;
+  /* Tyhjä tila (ei kirjauksia, ei siirtoja, ei aiempaa vientiä) on todennäköisesti
+     väärä selain — esim. magic link avattu Safarissa vaikka treenit ovat Koti-valikon
+     kuvakkeessa. Ei viedä sitä pilveen, ettei se peitä oikean laitteen jaksotusta. */
+  if(!pakota && !Object.keys(state.sessions).length && !(state.kevennysSiirrot||[]).length && !state.sykliPilviAika) return;
   try{
     const nyt=new Date().toISOString();
     const r=await fetch(SB_URL+'/rest/v1/treenisykli?on_conflict=user_id',{
@@ -603,6 +620,9 @@ async function pullSykli(){
     const r=await fetch(SB_URL+'/rest/v1/treenisykli?select=alku,kevennys_vali,siirrot,updated_at',{headers:sbHeaders()});
     if(!r.ok) return;
     const c=(await r.json())[0]; if(!c) return;
+    /* Tällä laitteella on jo kirjauksia, mutta jaksotusta ei ole viety → tämä on
+       oikea treenilaite; pilven rivi voi olla tyhjästä selaimesta. Pidetään oma. */
+    if(!state.sykliPilviAika && Object.keys(state.sessions).length>0) return;
     if(state.sykliPilviAika && Date.parse(c.updated_at)<=Date.parse(state.sykliPilviAika)) return;
     if(c.alku) state.start=c.alku;
     if(c.kevennys_vali) state.deloadEvery=c.kevennys_vali;
@@ -845,7 +865,10 @@ function synkkaBanneriHtml(){
   return '<div class="synk-varo"><div style="font-weight:600;margin-bottom:4px">'+otsikko+'</div>'
     +'<div class="muted" style="margin-bottom:10px">'+teksti+'</div>'
     +'<input type="email" id="kotimail" autocomplete="email" placeholder="oma@sahkoposti.fi" style="margin-bottom:8px">'
-    +'<button class="primary" id="btnkotilogin" style="width:100%">Lähetä kirjautumislinkki</button></div>';
+    +'<button class="primary" id="btnkotilogin" style="width:100%">Lähetä kirjautumislinkki</button>'
+    +'<div class="muted" style="margin-top:10px;font-size:12px">Käytätkö Koti-valikon kuvaketta? Sähköpostin linkki avautuu Safariin, ei tähän. Syötä sen sijaan <b>viestin 6-numeroinen koodi</b> tähän:</div>'
+    +'<div style="display:flex;gap:8px;margin-top:6px"><input type="text" inputmode="numeric" autocomplete="one-time-code" id="kotikoodi" placeholder="123456" maxlength="6" style="flex:1;margin:0">'
+    +'<button class="ghost" id="btnkotikoodi" style="white-space:nowrap">Kirjaudu koodilla</button></div></div>';
 }
 
 function renderHome(){
@@ -954,8 +977,18 @@ function renderHome(){
     const em=(document.getElementById('kotimail').value||'').trim();
     if(!em||em.indexOf('@')<1){ toast('Anna sähköpostiosoite'); return; }
     bk.disabled=true; bk.textContent='Lähetetään…';
-    try{ await sbSendLink(em); toast('Linkki lähetetty — tarkista sähköposti 📧'); bk.textContent='Linkki lähetetty ✓ — avaa se tällä laitteella'; }
+    try{ await sbSendLink(em); toast('Linkki lähetetty — tarkista sähköposti 📧'); bk.textContent='Lähetetty ✓ — avaa linkki tai syötä koodi alle'; }
     catch(e){ toast('Lähetys epäonnistui: '+e.message); bk.disabled=false; bk.textContent='Lähetä kirjautumislinkki'; }
+  };
+  const bkk=document.getElementById('btnkotikoodi');
+  if(bkk) bkk.onclick=async()=>{
+    const em=(document.getElementById('kotimail').value||'').trim();
+    const code=(document.getElementById('kotikoodi').value||'').trim();
+    if(!em||em.indexOf('@')<1){ toast('Anna sähköpostiosoite'); return; }
+    if(!/^\d{6}$/.test(code)){ toast('Koodi on 6 numeroa'); return; }
+    bkk.disabled=true; bkk.textContent='Tarkistetaan…';
+    try{ await sbVerifyCode(em, code); }
+    catch(e){ toast('Koodi ei kelpaa: '+e.message); bkk.disabled=false; bkk.textContent='Kirjaudu koodilla'; }
   };
 }
 
@@ -1401,7 +1434,10 @@ function renderSettings(){
         +'<button class="ghost" id="btnlogout">Kirjaudu ulos</button>'
       : '<div class="muted" style="margin-bottom:10px">Kirjaudu sähköpostilla, niin kirjaukset tallentuvat pilveen eivätkä katoa vaikka selain tyhjenisi. Saat sähköpostiisi kirjautumislinkin — <b>avaa se tällä samalla laitteella</b>.</div>'
         +'<div class="field"><label>Sähköposti</label><input type="email" id="loginmail" autocomplete="email" placeholder="oma@sahkoposti.fi"></div>'
-        +'<button class="primary" id="btnlogin">Lähetä kirjautumislinkki</button>')
+        +'<button class="primary" id="btnlogin">Lähetä kirjautumislinkki</button>'
+        +'<div class="muted" style="margin-top:10px;font-size:12px">Koti-valikon kuvakkeessa: syötä sähköpostiviestin 6-numeroinen koodi tähän (linkki avautuisi Safariin).</div>'
+        +'<div style="display:flex;gap:8px;margin-top:6px"><input type="text" inputmode="numeric" autocomplete="one-time-code" id="asetuskoodi" placeholder="123456" maxlength="6" style="flex:1;margin:0">'
+        +'<button class="ghost" id="btnasetuskoodi" style="white-space:nowrap">Kirjaudu koodilla</button></div>')
     +'</div>'
     +'<div class="card"><h3 style="font-size:17px">Ohjelman jaksotus</h3>'
     +'<div class="field"><label>Ohjelman aloitusviikon maanantai</label>'
@@ -1431,6 +1467,16 @@ function renderSettings(){
     try{ await sbSendLink(em); toast('Linkki lähetetty — tarkista sähköposti 📧'); bl.textContent='Linkki lähetetty ✓'; }
     catch(e){ toast('Lähetys epäonnistui: '+e.message); bl.disabled=false; bl.textContent='Lähetä kirjautumislinkki'; }
   };
+  const bak=document.getElementById('btnasetuskoodi');
+  if(bak) bak.onclick=async()=>{
+    const em=(document.getElementById('loginmail').value||'').trim();
+    const code=(document.getElementById('asetuskoodi').value||'').trim();
+    if(!em||em.indexOf('@')<1){ toast('Anna sähköpostiosoite'); return; }
+    if(!/^\d{6}$/.test(code)){ toast('Koodi on 6 numeroa'); return; }
+    bak.disabled=true; bak.textContent='Tarkistetaan…';
+    try{ await sbVerifyCode(em, code); }
+    catch(e){ toast('Koodi ei kelpaa: '+e.message); bak.disabled=false; bak.textContent='Kirjaudu koodilla'; }
+  };
   const bo=document.getElementById('btnlogout');
   if(bo) bo.onclick=()=>{ sbSession=null; saveAuth(); syncMsg=''; synkkaTila='ei'; toast('Kirjauduttu ulos'); render(); };
 
@@ -1445,9 +1491,9 @@ function renderSettings(){
   };
 
   document.getElementById('setstart').onchange=e=>{
-    if(e.target.value){ state.start=iso(mondayOf(fromIso(e.target.value))); save(); pushSykli(); updateTopbar(); }
+    if(e.target.value){ state.start=iso(mondayOf(fromIso(e.target.value))); save(); pushSykli(true); updateTopbar(); }
   };
-  document.getElementById('setdeload').onchange=e=>{ state.deloadEvery=+e.target.value; save(); pushSykli(); updateTopbar(); };
+  document.getElementById('setdeload').onchange=e=>{ state.deloadEvery=+e.target.value; save(); pushSykli(true); updateTopbar(); };
   document.getElementById('btnexport').onclick=()=>{
     const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
     const a=document.createElement('a');
