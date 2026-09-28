@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#101318">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="kn-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Treenipäiväkirja">
@@ -131,6 +133,13 @@
   .unit{color:var(--muted);font-size:12px;padding:0 8px 0 4px}
   .addset{background:none;border:1px dashed var(--line);color:var(--muted);border-radius:8px;
     padding:5px 12px;font-size:13px;cursor:pointer}
+  .sets td.delcell{width:34px;text-align:center;padding:0}
+  .sets .delset{background:none;border:0;color:var(--muted);font-size:16px;line-height:1;
+    cursor:pointer;padding:6px 8px}
+  .sets .delset:active{color:var(--f-eraskas)}
+  .synk-ok{font-size:13px;color:var(--f-kevyt);margin:0 0 10px}
+  .synk-varo{background:rgba(255,180,84,.12);border:1px solid var(--accent);
+    border-radius:var(--radius);padding:14px;margin:0 0 12px}
   /* ---------- feel chips ---------- */
   .feels{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
   .feels button{
@@ -204,9 +213,41 @@
     padding:8px 18px;border-radius:999px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:40;
   }
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #paivitysbanneri{
+    position:fixed;bottom:76px;left:50%;transform:translateX(-50%);
+    display:flex;align-items:center;gap:10px;white-space:nowrap;
+    background:var(--surface2);border:1px solid var(--accent);color:var(--text);
+    padding:10px 12px 10px 16px;border-radius:14px;font-size:14px;z-index:41;
+    box-shadow:0 4px 20px rgba(0,0,0,.4);max-width:calc(100% - 24px);
+  }
+  #paivitysbanneri .pb-paivita{
+    background:var(--accent);color:#101318;border:0;border-radius:999px;
+    padding:7px 14px;font-size:14px;font-weight:600;cursor:pointer;
+  }
+  #paivitysbanneri .pb-sulje{
+    background:none;border:0;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 6px;
+  }
+  .vahvista-tausta{
+    position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:60;
+    display:flex;align-items:center;justify-content:center;padding:20px;
+  }
+  .vahvista-kortti{
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:18px;max-width:420px;width:100%;font-size:15px;
+    box-shadow:0 8px 32px rgba(0,0,0,.5);
+  }
+  .vahvista-napit{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+  .vahvista-napit button{width:auto;padding:9px 16px}
   .deload-banner{
     background:rgba(76,201,192,.12);border:1px solid var(--teal);border-radius:var(--radius);
     padding:10px 14px;margin:10px 0;font-size:14px;color:var(--teal);
+  }
+  .card.ex-tehty{border-color:rgba(76,195,138,.55)}
+  .tehty-merkki{
+    float:right;background:rgba(76,195,138,.14);color:var(--f-kevyt);
+    border:1px solid rgba(76,195,138,.5);border-radius:999px;
+    font:600 12px -apple-system,sans-serif;letter-spacing:0;text-transform:none;
+    padding:3px 10px;margin-left:8px;
   }
   @media (prefers-reduced-motion:reduce){ #toast{transition:none} }
 </style>
@@ -249,7 +290,7 @@ const SKIPS = [
 ];
 const SKIPN = Object.fromEntries(SKIPS.map(x=>[x.k,x.n]));
 
-const PROGRAM = {
+const DEFAULT_PROGRAM = {
   ma: { title:'Alakroppa', sub:'Viikon raskain salitreeni', type:'gym', ex:[
     { id:'mave', name:'Maastaveto', sets:3, min:6, max:8, inc:5,
       tip:'Voimaliike — tee isolla kuormalla. Kun toistot lähenevät kahdeksaa, lisää painoa. Selkä suorana, tanko lähellä sääriä.',
@@ -355,6 +396,7 @@ const PROGRAM = {
   su: { title:'Lepopäivä', sub:'Askeltavoite + kehonhuolto', type:'rest',
     tip:'Venyttely edistää palautumista ja aineenvaihduntaa. YouTubessa on hyviä kehonhuoltovideoita.' },
 };
+let PROGRAM = DEFAULT_PROGRAM;
 const DAYS = ['ma','ti','ke','to','pe','la','su'];
 const DOW  = {ma:'Ma',ti:'Ti',ke:'Ke',to:'To',pe:'Pe',la:'La',su:'Su'};
 const DOWFULL = {ma:'Maanantai',ti:'Tiistai',ke:'Keskiviikko',to:'Torstai',pe:'Perjantai',la:'Lauantai',su:'Sunnuntai'};
@@ -375,6 +417,30 @@ if (!state.sessions) state.sessions = {};
 if (!state.defaults) state.defaults = {};
 if (!state.deloadEvery) state.deloadEvery = 4;
 if (!state.prs) state.prs = {};
+if (!state.kevennysSiirrot) state.kevennysSiirrot = [];
+if (state.ohjelma && state.ohjelma.paivat) PROGRAM = state.ohjelma.paivat;
+
+/* Valmentajan ohjelmalinkki: #ohjelma=<base64url-JSON> */
+function tarkistaOhjelmaLinkki(){
+  const m = location.hash.match(/#ohjelma=([A-Za-z0-9\-_=]+)/);
+  if(!m) return;
+  try{
+    const b64 = m[1].replace(/-/g,'+').replace(/_/g,'/');
+    const json = decodeURIComponent(escape(atob(b64)));
+    const obj = JSON.parse(json);
+    if(!obj || !obj.paivat || !obj.paivat.ma) throw new Error('rakenne');
+    history.replaceState(null,'',location.pathname+location.search);
+    const nimi = obj.nimi || 'uusi ohjelma';
+    vahvista('Valmentajalta saapui treeniohjelma: "'+nimi+'".\n\nOtetaanko se käyttöön? Aiemmat kirjauksesi säilyvät.','Ota käyttöön').then(ok=>{
+      if(!ok) return;
+      state.ohjelma = obj;
+      PROGRAM = obj.paivat;
+      localStorage.setItem(KEY, JSON.stringify(state));
+      toast('Ohjelma "'+nimi+'" käytössä ✓');
+      render();
+    });
+  }catch(e){ toast('Ohjelmalinkin luku epäonnistui — pyydä valmentajalta uusi linkki.'); }
+}
 
 let saveTimer=null;
 function save(quiet){
@@ -389,6 +455,35 @@ function toast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
   clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1400);
+}
+/* Oma vahvistusmodaali confirm():n tilalle — selaimen dialogit eivät näy
+   iOS:n Koti-valikkoon asennetussa sovelluksessa (standalone-tila). */
+function vahvista(viesti, hyvaksyTeksti){
+  return new Promise(res=>{
+    const o=document.createElement('div');
+    o.className='vahvista-tausta';
+    o.innerHTML='<div class="vahvista-kortti"><div style="white-space:pre-wrap">'+esc(viesti)+'</div>'
+      +'<div class="vahvista-napit"><button class="ghost" data-ei>Peruuta</button>'
+      +'<button class="primary" data-ok>'+esc(hyvaksyTeksti||'OK')+'</button></div></div>';
+    document.body.appendChild(o);
+    o.querySelector('[data-ok]').onclick=()=>{ o.remove(); res(true); };
+    o.querySelector('[data-ei]').onclick=()=>{ o.remove(); res(false); };
+  });
+}
+/* Tekstisyötemodaali (esim. siirron syy) — palauttaa merkkijonon tai null */
+function kysySyy(otsikko, placeholder){
+  return new Promise(res=>{
+    const o=document.createElement('div');
+    o.className='vahvista-tausta';
+    o.innerHTML='<div class="vahvista-kortti"><div style="white-space:pre-wrap;margin-bottom:10px">'+esc(otsikko)+'</div>'
+      +'<input type="text" id="syyinput" placeholder="'+esc(placeholder||'')+'" style="width:100%;font-size:16px">'
+      +'<div class="vahvista-napit" style="margin-top:14px"><button class="ghost" data-ei>Peruuta</button>'
+      +'<button class="primary" data-ok>Tallenna</button></div></div>';
+    document.body.appendChild(o);
+    const inp=o.querySelector('#syyinput'); setTimeout(()=>inp.focus(),50);
+    o.querySelector('[data-ok]').onclick=()=>{ const v=inp.value.trim(); if(!v){ inp.focus(); return; } o.remove(); res(v); };
+    o.querySelector('[data-ei]').onclick=()=>{ o.remove(); res(null); };
+  });
 }
 
 /* ============================== VALMENTAJAYHTEYS ============================== */
@@ -423,6 +518,10 @@ const SB_URL='https://iroupwdszrboyjysjjcq.supabase.co';
 const SB_KEY='sb_publishable_Ud9cZaeyQ8TRth-_ALwvmA_PBlZmzGi';
 let sbSession=null;
 let syncMsg='';
+/* Synkkatila Koti-sivun banneria varten:
+   'paalla' = kirjautunut ja synkkaa · 'ei' = ei kirjautunut (data vain laitteessa)
+   'vanhentunut' = istunto vanheni, pitää kirjautua uudelleen · 'tarkistetaan' = cloudBoot kesken */
+let synkkaTila = (function(){ try{ return localStorage.getItem('tpk_auth') ? 'tarkistetaan' : 'ei'; }catch(e){ return 'ei'; } })();
 
 function loadAuth(){ try{ sbSession=JSON.parse(localStorage.getItem('tpk_auth'))||null; }catch(e){ sbSession=null; } }
 function saveAuth(){ if(sbSession) localStorage.setItem('tpk_auth', JSON.stringify(sbSession)); else localStorage.removeItem('tpk_auth'); }
@@ -483,6 +582,35 @@ async function pushPr(liike, pr){
   try{ await fetch(SB_URL+'/rest/v1/prs',{method:'POST',headers:sbHeaders(),
     body:JSON.stringify({user_id:sbSession.user.id, liike:liike, paino:pr.w, pvm:pr.date})}); }catch(e){}
 }
+/* Jaksotus (aloitusviikko, kevennysväli, kevennysviikon siirrot syineen) pilveen —
+   valmentaja näkee asiakkaan ohjelmaviikon ja siirretyt kevennysviikot. */
+async function pushSykli(){
+  if(!cloudOn()) return;
+  try{
+    const nyt=new Date().toISOString();
+    const r=await fetch(SB_URL+'/rest/v1/treenisykli?on_conflict=user_id',{
+      method:'POST', headers:Object.assign(sbHeaders(),{Prefer:'resolution=merge-duplicates,return=minimal'}),
+      body:JSON.stringify({user_id:sbSession.user.id, alku:state.start, kevennys_vali:state.deloadEvery,
+        siirrot:state.kevennysSiirrot||[], updated_at:nyt})});
+    if(r.ok){ state.sykliPilviAika=nyt; localStorage.setItem(KEY, JSON.stringify(state)); }
+  }catch(e){}
+}
+/* Pilvestä laitteeseen: jos pilven jaksotus on uudempi kuin tältä laitteelta
+   viimeksi viety (esim. uusi laite tai selain tyhjennetty), otetaan se käyttöön. */
+async function pullSykli(){
+  if(!cloudOn()) return;
+  try{
+    const r=await fetch(SB_URL+'/rest/v1/treenisykli?select=alku,kevennys_vali,siirrot,updated_at',{headers:sbHeaders()});
+    if(!r.ok) return;
+    const c=(await r.json())[0]; if(!c) return;
+    if(state.sykliPilviAika && Date.parse(c.updated_at)<=Date.parse(state.sykliPilviAika)) return;
+    if(c.alku) state.start=c.alku;
+    if(c.kevennys_vali) state.deloadEvery=c.kevennys_vali;
+    if(Array.isArray(c.siirrot)) state.kevennysSiirrot=c.siirrot;
+    state.sykliPilviAika=c.updated_at;
+    localStorage.setItem(KEY, JSON.stringify(state));
+  }catch(e){}
+}
 /* Pilvestä paikalliseen: täydentää puuttuvat päivät ja 1RM:t */
 async function pullCloud(){
   if(!cloudOn()) return;
@@ -501,19 +629,52 @@ async function pushCloudAll(){
   if(!cloudOn()) return;
   for(const d of Object.keys(state.sessions)) await pushDay(d);
 }
+/* Valmentajan pilvestä jakama ohjelma: haetaan käynnistyksessä ja otetaan
+   käyttöön, jos jako tai ohjelman sisältö on muuttunut edellisestä. */
+async function pullOhjelma(){
+  if(!cloudOn()) return;
+  try{
+    const r=await fetch(SB_URL+'/rest/v1/rpc/oma_ohjelma',{method:'POST',headers:sbHeaders(),body:'{}'});
+    if(!r.ok) return;
+    const o=await r.json();
+    if(!o || !o.data || !o.data.paivat) return;
+    const aika=(o.paivitetty||'')+'|'+(o.jaettu||'');
+    if(state.ohjelmaPilviAika===aika) return;
+    state.ohjelma=o.data;
+    state.ohjelmaPilviAika=aika;
+    PROGRAM=o.data.paivat;
+    localStorage.setItem(KEY, JSON.stringify(state));
+    toast('Valmentajan ohjelma "'+(o.data.nimi||o.nimi)+'" käytössä ✓');
+  }catch(e){}
+}
+/* Valmentajan kommentit Koti-sivulle */
+let valmentajanKommentit=[];
+async function pullKommentit(){
+  if(!cloudOn()) return;
+  try{
+    const r=await fetch(SB_URL+'/rest/v1/comments?select=viikko,teksti,created_at&valmennettava_id=eq.'+sbSession.user.id+'&order=created_at.desc&limit=5',{headers:sbHeaders()});
+    if(r.ok) valmentajanKommentit=await r.json();
+  }catch(e){}
+}
 async function cloudBoot(){
   loadAuth(); handleAuthHash();
-  if(!sbSession) return;
+  if(!sbSession){ synkkaTila='ei'; return; }
   const ok=await sbRefresh();
-  if(!ok){ render(); return; }
+  if(!ok){ synkkaTila='vanhentunut'; render(); return; }
   await sbUser();
   if(cloudOn()){
+    /* Lunasta mahdollinen valmentajan kutsu (kytkös syntyy automaattisesti) */
+    try{ await fetch(SB_URL+'/rest/v1/rpc/lunasta_kutsut',{method:'POST',headers:sbHeaders(),body:'{}'}); }catch(e){}
+    await pullOhjelma();
+    await pullKommentit();
     await pullCloud();
+    await pullSykli();
     await pushCloudAll();
-    syncMsg='Synkattu ✓';
+    await pushSykli();
+    synkkaTila='paalla'; syncMsg='Synkattu ✓';
     render();
     toast('Pilvisynkronointi päällä ✓');
-  }
+  } else { synkkaTila='vanhentunut'; render(); }
 }
 
 function weekNum(dateIso){
@@ -522,7 +683,12 @@ function weekNum(dateIso){
 }
 function isDeload(dateIso){
   const w=weekNum(dateIso);
-  return w>0 && w % state.deloadEvery === 0;
+  if(w<=0) return false;
+  const mon=iso(mondayOf(fromIso(dateIso)));
+  const sr=state.kevennysSiirrot||[];
+  if(sr.some(s=>s.kohde===mon)) return true;   /* kevennys siirretty tähän viikkoon */
+  if(sr.some(s=>s.alkup===mon)) return false;  /* kevennys siirretty pois tästä viikosta */
+  return w % state.deloadEvery === 0;
 }
 function dayKeyOf(dateIso){ return DAYS[(fromIso(dateIso).getDay()+6)%7]; }
 
@@ -545,11 +711,17 @@ function sessionDone(s, dk){
   if(s.cardio && s.cardio.kesto) return true;
   return Object.values(s.entries||{}).some(e=>e.sets && e.sets.some(x=>x.r!=='' && x.r!=null));
 }
+/* Liike on tehty, kun kirjattuja sarjoja on vähintään ohjelman sarjamäärä */
+function liikeTehty(entry, ex){
+  if(!entry || !entry.sets) return false;
+  return entry.sets.filter(x=>x.r!=='' && x.r!=null).length >= ex.sets;
+}
 
 /* Viimeisin kirjaus liikevariantille (nimen mukaan) ennen annettua päivää */
-function findLast(variantName, beforeIso){
+function findLast(variantName, beforeIso, ohitaKevennys){
   const dates=Object.keys(state.sessions).filter(d=>d<beforeIso).sort().reverse();
   for(const d of dates){
+    if(ohitaKevennys && isDeload(d)) continue;
     const s=state.sessions[d];
     for(const e of Object.values(s.entries||{})){
       if(e.name===variantName && e.sets && e.sets.some(x=>x.r!=='' && x.r!=null)){
@@ -563,8 +735,11 @@ function topWeight(sets){ return Math.max(...sets.map(x=>parseFloat(x.w)||0)); }
 function roundInc(v,inc){ return Math.round(v/inc)*inc; }
 
 function suggestion(ex, variantName, dateIso){
-  const last=findLast(variantName, dateIso);
   const deload=isDeload(dateIso);
+  /* Kevennysviikkojen kirjaukset ohitetaan vertailussa: uusi sykli jatkuu
+     siitä mihin edellinen raskas viikko jäi (superkompensaatio). */
+  const last=findLast(variantName, dateIso, true);
+  const edellinenKevennys = !deload && isDeload(addDays(dateIso,-7));
   if(!last){
     return { cls:'', txt: deload
       ? 'Kevennysviikko — pidä kuormat reippaasti varman puolella.'
@@ -580,6 +755,10 @@ function suggestion(ex, variantName, dateIso){
     return { cls:'', txt:'Tavoite: yli '+best+' '+(ex.unit||'toistoa')+' — keho tarvitsee uuden ärsykkeen.' };
   }
   const allTop = last.sets.length>=ex.sets && last.sets.every(x=>(parseInt(x.r)||0)>=ex.max);
+  if(edellinenKevennys && tw>0){
+    return { cls:'', txt:'Kevennys takana — palaa raskaan viikon kuormiin: '+tw+' kg'
+      +(allTop?', tai kokeile '+(tw+ex.inc)+' kg — palautunut keho on vahvimmillaan.':' ja jatka toistojen kasvattamista.') };
+  }
   if(allTop && tw>0){
     return { cls:'', txt:'Viimeksi kaikki sarjat ylärajassa ('+ex.max+') → lisää painoa: kokeile '+(tw+ex.inc)+' kg.' };
   }
@@ -626,7 +805,49 @@ function render(keepScroll){
   window.scrollTo(0,y);
 }
 
+/* ---------- PWA-asennusvihje ---------- */
+let asennusKehote=null;
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); asennusKehote=e; if(tab==='home') render(true); });
+window.addEventListener('appinstalled',()=>{ asennusKehote=null; localStorage.setItem('knt_asennusvihje_piilotettu','1'); if(tab==='home') render(true); });
+function asennettuna(){ return matchMedia('(display-mode: standalone)').matches || navigator.standalone===true; }
+function asennusVihjeHtml(){
+  if(asennettuna() || localStorage.getItem('knt_asennusvihje_piilotettu')) return '';
+  const ios=/iPad|iPhone|iPod/.test(navigator.userAgent);
+  let sisus;
+  if(ios){
+    sisus='<ol class="muted" style="margin:8px 0 0;padding-left:20px;line-height:1.7">'
+      +'<li>Napauta Safarin <b>Jaa-nappia</b> (neliö, josta nuoli ylös)</li>'
+      +'<li>Vieritä alas ja valitse <b>"Lisää Koti-valikkoon"</b></li>'
+      +'<li>Napauta <b>Lisää</b> — valmis!</li></ol>';
+  } else if(asennusKehote){
+    sisus='<button class="primary" id="btnasenna" style="margin-top:10px;width:100%">Asenna sovellus</button>';
+  } else {
+    sisus='<div class="muted" style="margin-top:8px">Avaa selaimen valikko (⋮) ja valitse <b>"Lisää aloitusnäyttöön"</b> tai <b>"Asenna sovellus"</b>.</div>';
+  }
+  return '<div class="card">'
+    +'<h3 style="font-size:17px">📲 Asenna appi puhelimeesi</h3>'
+    +'<div class="muted" style="margin-top:6px">Saat päiväkirjan omalla KN-kuvakkeella puhelimen Koti-valikkoon — aukeaa kokoruudussa kuin sovellus ja toimii myös ilman verkkoa. Kirjauksesi säilyvät ennallaan.</div>'
+    +sisus
+    +'<button class="ghost" id="btnvihjepois" style="margin-top:10px;width:100%">Piilota ohje</button>'
+    +'</div>';
+}
+
 /* ---------- KOTI ---------- */
+/* Synkkatilan banneri Koti-sivun ylälaitaan — tekee näkyväksi jos treenit
+   eivät tallennu pilveen (valmentaja ei silloin näe niitä). */
+function synkkaBanneriHtml(){
+  if(cloudOn()) return '<div class="synk-ok">☁️ Pilvisynkronointi päällä — valmentajasi näkee treenisi.</div>';
+  if(synkkaTila==='tarkistetaan') return '<div class="synk-ok" style="color:var(--muted)">☁️ Yhdistetään pilveen…</div>';
+  const otsikko = synkkaTila==='vanhentunut' ? '⚠️ Kirjautuminen vanheni' : '⚠️ Treenisi eivät tallennu pilveen';
+  const teksti = synkkaTila==='vanhentunut'
+    ? 'Istuntosi vanheni, eivätkä treenit juuri nyt tallennu pilveen — valmentajasi ei näe uusia kirjauksia. Kirjaudu uudelleen sähköpostillasi.'
+    : 'Treenisi tallentuvat vain tähän laitteeseen, eikä valmentajasi näe niitä. Kirjaudu sähköpostillasi, niin ne synkronoituvat automaattisesti — myös aiemmat kirjauksesi.';
+  return '<div class="synk-varo"><div style="font-weight:600;margin-bottom:4px">'+otsikko+'</div>'
+    +'<div class="muted" style="margin-bottom:10px">'+teksti+'</div>'
+    +'<input type="email" id="kotimail" autocomplete="email" placeholder="oma@sahkoposti.fi" style="margin-bottom:8px">'
+    +'<button class="primary" id="btnkotilogin" style="width:100%">Lähetä kirjautumislinkki</button></div>';
+}
+
 function renderHome(){
   const mon=iso(mondayOf(new Date()));
   const lastMon=addDays(mon,-7);
@@ -643,7 +864,8 @@ function renderHome(){
   else if(total>0) msg='Tervetuloa takaisin! Paras hetki jatkaa on tänään 💪';
   else msg='Tervetuloa! Aloita ensimmäinen treenisi Viikko-välilehdeltä 💪';
 
-  let html='<div class="dayhead"><h2>Tervetuloa</h2></div>'
+  let html=synkkaBanneriHtml()
+    +'<div class="dayhead"><h2>Tervetuloa</h2></div>'
     +'<div class="card"><div style="font-size:16px;font-weight:600">'+esc(msg)+'</div>'
     +'<div class="statgrid">'
     +statBox(ws.done,'treeniä viime viikolla')
@@ -657,6 +879,8 @@ function renderHome(){
     +'<button class="primary" id="gotoworkout" style="margin-top:12px;width:100%">Avaa päivän treeni →</button>'
     +'</div>';
 
+  html+=asennusVihjeHtml();
+
   /* Valmennuspalvelut */
   html+='<div class="card"><h3 style="font-size:17px">⭐ Henkilökohtainen valmennus</h3>'
     +'<div class="muted" style="margin:6px 0 12px">Haluatko viedä treenisi pidemmälle? Varaa Kialta henkilökohtainen valmennusaika — tekniikan hionta, ohjelman räätälöinti tai PT-treeni yhdessä. Voit myös lähettää kysymyksen: viestiin liitetään viikkokoosteesi automaattisesti, jotta valmentaja näkee tilanteesi.</div>'
@@ -665,6 +889,18 @@ function renderHome(){
     +'<a class="btn-ghost" href="'+kysyHref()+'">💬 Kysy valmentajalta</a>'
     +'<a class="btn-ghost" href="'+COACH.ig+'" target="_blank" rel="noopener">📸 Seuraa Instagramissa · @norringkia</a>'
     +'</div></div>';
+
+  if(valmentajanKommentit.length){
+    html+='<div class="card"><h3 style="font-size:17px">💬 Valmentajan palaute</h3>'
+      +valmentajanKommentit.map(k=>'<div style="background:var(--surface2);border-radius:10px;padding:10px 12px;margin-top:8px">'+esc(k.teksti)
+        +'<div class="muted" style="font-size:11px;margin-top:4px">Viikko '+fmtFi(k.viikko)+'–'+fmtFi(addDays(k.viikko,6))+'</div></div>').join('')
+      +'</div>';
+  }
+
+  if(state.ohjelma && state.ohjelma.ravinto){
+    html+='<div class="card"><h3 style="font-size:17px">🥗 Valmentajan ravinto-ohje sinulle</h3>'
+      +'<div class="muted" style="white-space:pre-wrap;margin-top:6px">'+esc(state.ohjelma.ravinto)+'</div></div>';
+  }
 
   html+='<div class="dayhead" style="margin-top:20px"><h2>Valmentajan ohjeet</h2></div>'
 
@@ -709,9 +945,46 @@ function renderHome(){
 
   $view.innerHTML=html;
   document.getElementById('gotoworkout').onclick=()=>{ selDate=iso(new Date()); tab='workout'; render(); };
+  const ba=document.getElementById('btnasenna');
+  if(ba) ba.onclick=async()=>{ if(!asennusKehote) return; asennusKehote.prompt(); await asennusKehote.userChoice; asennusKehote=null; render(true); };
+  const bv=document.getElementById('btnvihjepois');
+  if(bv) bv.onclick=()=>{ localStorage.setItem('knt_asennusvihje_piilotettu','1'); render(true); };
+  const bk=document.getElementById('btnkotilogin');
+  if(bk) bk.onclick=async()=>{
+    const em=(document.getElementById('kotimail').value||'').trim();
+    if(!em||em.indexOf('@')<1){ toast('Anna sähköpostiosoite'); return; }
+    bk.disabled=true; bk.textContent='Lähetetään…';
+    try{ await sbSendLink(em); toast('Linkki lähetetty — tarkista sähköposti 📧'); bk.textContent='Linkki lähetetty ✓ — avaa se tällä laitteella'; }
+    catch(e){ toast('Lähetys epäonnistui: '+e.message); bk.disabled=false; bk.textContent='Lähetä kirjautumislinkki'; }
+  };
 }
 
 /* ---------- VIIKKO ---------- */
+/* Kevennysviikon banneri + siirtonapit viikkonäkymään */
+function kevennysSektioHtml(mon, w){
+  const sr=state.kevennysSiirrot||[];
+  const kohdeRec=sr.find(s=>s.kohde===mon);
+  const alkupRec=sr.find(s=>s.alkup===mon);
+  const aikat = w>0 && w%state.deloadEvery===0;
+  if(kohdeRec){
+    return '<div class="deload-banner"><b>Kevennysviikko.</b> Pudota painot noin 65 %:iin, sama tekniikka ja liikelaajuus.'
+      +'<div class="muted" style="margin-top:4px">Siirretty tähän viikkoon — syy: '+esc(kohdeRec.syy)+'</div>'
+      +'<div style="margin-top:8px"><button class="ghost" data-peru>Peru siirto</button></div></div>';
+  }
+  if(alkupRec){
+    return '<div class="deload-banner" style="background:var(--surface2);border-color:var(--line);color:var(--muted)">'
+      +'Kevennysviikko siirretty '+(alkupRec.suunta==='aikaisemmaksi'?'edelliselle':'seuraavalle')+' viikolle — syy: '+esc(alkupRec.syy)
+      +'<div style="margin-top:8px"><button class="ghost" data-peru>Peru siirto</button></div></div>';
+  }
+  if(aikat){
+    return '<div class="deload-banner"><b>Kevennysviikko.</b> Pudota painot noin 65 %:iin, sama tekniikka ja liikelaajuus. Palautuminen tekee kasvun.'
+      +'<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">'
+      +'<button class="ghost" data-siirra="-7">← Siirrä edelliselle viikolle</button>'
+      +'<button class="ghost" data-siirra="7">Siirrä seuraavalle viikolle →</button></div></div>';
+  }
+  return '';
+}
+
 function renderWeek(){
   const mon=iso(mondayOf(fromIso(selDate)));
   const today=iso(new Date());
@@ -720,9 +993,7 @@ function renderWeek(){
     + '<button class="ghost" id="wprev" aria-label="Edellinen viikko">‹</button>'
     + '<h2>Viikko '+(w>0?w:'—')+' <span class="muted" style="font:400 14px -apple-system,sans-serif">'+fmtFi(mon)+'–'+fmtFi(addDays(mon,6))+'</span></h2>'
     + '<button class="ghost" id="wnext" aria-label="Seuraava viikko">›</button></div>';
-  if(isDeload(mon)){
-    html+='<div class="deload-banner"><b>Kevennysviikko.</b> Pudota painot noin 65 %:iin, sama tekniikka ja liikelaajuus. Palautuminen tekee kasvun.</div>';
-  }
+  html+=kevennysSektioHtml(mon, w);
   for(let i=0;i<7;i++){
     const d=addDays(mon,i), dk=DAYS[i];
     const s=getSession(d);
@@ -751,6 +1022,20 @@ function renderWeek(){
   document.getElementById('wprev').onclick=()=>{ selDate=addDays(mon,-7); render(); };
   document.getElementById('wnext').onclick=()=>{ selDate=addDays(mon,7); render(); };
   $view.querySelectorAll('.daycard').forEach(b=>b.onclick=()=>{ selDate=b.dataset.date; tab='workout'; render(); });
+  $view.querySelectorAll('[data-siirra]').forEach(b=>b.onclick=()=>{
+    const dir=+b.dataset.siirra;
+    kysySyy('Miksi kevennysviikko siirretään?\n(esim. loma tai sairaus)').then(syy=>{
+      if(!syy) return;
+      state.kevennysSiirrot=state.kevennysSiirrot||[];
+      state.kevennysSiirrot.push({alkup:mon, kohde:addDays(mon,dir), suunta: dir>0?'myohemmaksi':'aikaisemmaksi', syy:syy, kirjattu:new Date().toISOString()});
+      save(); pushSykli(); toast('Kevennysviikko siirretty ✓'); render(true);
+    });
+  });
+  const bPeru=$view.querySelector('[data-peru]');
+  if(bPeru) bPeru.onclick=()=>{
+    state.kevennysSiirrot=(state.kevennysSiirrot||[]).filter(s=>s.alkup!==mon && s.kohde!==mon);
+    save(); pushSykli(); toast('Siirto peruttu'); render(true);
+  };
 }
 
 /* ---------- TREENI ---------- */
@@ -802,13 +1087,15 @@ function renderWorkout(){
       const variant=(entry&&entry.name)||state.defaults[ex.id]||ex.name;
       const variants=[ex.name,...ex.alts.map(a=>a.name)];
       const vinfo = variant===ex.name ? ex : (ex.alts.find(a=>a.name===variant)||ex);
-      const last=findLast(variant, selDate);
+      const last=findLast(variant, selDate, true);
       const sug=suggestion(ex, variant, selDate);
       const target= ex.maxSet ? (ex.sets+' × max') : (ex.sets+' × '+ex.min+'–'+ex.max);
       const nsets = entry?entry.sets.length:ex.sets;
 
-      html+='<div class="card" data-ex="'+ex.id+'">'
-        +'<h3>'+esc(variant)+' <span class="muted" style="font:400 14px -apple-system,sans-serif;text-transform:none">'+target+'</span></h3>'
+      const tehty=liikeTehty(entry, ex);
+      html+='<div class="card'+(tehty?' ex-tehty':'')+'" data-ex="'+ex.id+'">'
+        +'<h3><span class="tehty-merkki" data-tehty'+(tehty?'':' hidden')+'>✓ Tehty</span>'
+        +esc(variant)+' <span class="muted" style="font:400 14px -apple-system,sans-serif;text-transform:none">'+target+'</span></h3>'
         +'<div class="variant"><span class="swap">Variaatio:</span><select data-varsel>'
         + variants.map(v=>'<option'+(v===variant?' selected':'')+'>'+esc(v)+'</option>').join('')
         +'</select></div>'
@@ -829,7 +1116,9 @@ function renderWorkout(){
           +(ex.maxSet&&ex.unit==='sek'
             ? '<td></td>'
             : '<td><input type="text" class="num" inputmode="decimal" autocomplete="off" enterkeyhint="next" data-set="'+i+'" data-f="w" placeholder="'+wPh+'" value="'+(st.w??'')+'"><span class="unit">kg</span></td>')
-          +'<td><input type="number" inputmode="numeric" step="1" min="0" enterkeyhint="done" data-set="'+i+'" data-f="r" placeholder="'+rPh+'" value="'+(st.r??'')+'"><span class="unit">'+(ex.unit||'toistoa')+'</span></td></tr>';
+          +'<td><input type="number" inputmode="numeric" step="1" min="0" enterkeyhint="done" data-set="'+i+'" data-f="r" placeholder="'+rPh+'" value="'+(st.r??'')+'"><span class="unit">'+(ex.unit||'toistoa')+'</span></td>'
+          +(i>=ex.sets ? '<td class="delcell"><button class="delset" data-delset="'+i+'" aria-label="Poista lisäsarja" title="Poista lisäsarja">✕</button></td>' : '<td class="delcell"></td>')
+          +'</tr>';
       }
       html+='</table><button class="addset" data-addset>+ lisäsarja</button>'
         +'<div class="muted" style="margin-top:10px">Miltä tuntui?</div>'
@@ -896,6 +1185,11 @@ function renderWorkout(){
         /* iOS: suomalainen näppäimistö antaa pilkun desimaalierottimeksi → normalisoi pisteeksi */
         const v = inp.dataset.f==='w' ? inp.value.replace(/,/g,'.').replace(/[^\d.]/g,'').trim() : inp.value;
         e.sets[+inp.dataset.set][inp.dataset.f]=v;
+        /* Tehty-merkintä päivittyy paikan päällä — täysi render veisi näppäimistöfokuksen */
+        const valmis=liikeTehty(e, ex);
+        card.classList.toggle('ex-tehty', valmis);
+        const merkki=card.querySelector('[data-tehty]');
+        if(merkki) merkki.hidden=!valmis;
         save();
       });
     });
@@ -912,6 +1206,13 @@ function renderWorkout(){
       e.sets.push({w:'',r:''});
       save(true); render(true);
     });
+    card.querySelectorAll('[data-delset]').forEach(b=>b.addEventListener('click',()=>{
+      const e=ensureEntry(selDate,ex);
+      const idx=+b.dataset.delset;
+      if(e.sets.length<=1 || idx>=e.sets.length) return;
+      e.sets.splice(idx,1);
+      save(true); render(true);
+    }));
     card.querySelector('[data-exfeel]').querySelectorAll('button').forEach(b=>{
       b.addEventListener('click',()=>{
         const e=ensureEntry(selDate,ex);
@@ -1084,6 +1385,14 @@ function renderHistory(){
 /* ---------- ASETUKSET ---------- */
 function renderSettings(){
   let html='<div class="dayhead"><h2>Asetukset</h2></div>'
+    +'<div class="card"><h3 style="font-size:17px">📋 Treeniohjelma</h3>'
+    +(state.ohjelma
+      ? '<div class="muted" style="margin-bottom:10px">Käytössä: <b style="color:var(--text)">'+esc(state.ohjelma.nimi||'oma ohjelma')+'</b>'
+        +(state.ohjelma.laatija?' · laatinut '+esc(state.ohjelma.laatija):'')
+        +(state.ohjelma.pvm?' · '+esc(state.ohjelma.pvm):'')+'</div>'
+        +'<button class="ghost" id="btnoletusohjelma">Palauta perusohjelma</button>'
+      : '<div class="muted">Käytössä: Kian perusohjelma. Valmentaja voi lähettää sinulle räätälöidyn ohjelman linkkinä — avaa linkki tällä laitteella, niin ohjelma vaihtuu automaattisesti. Kirjauksesi säilyvät aina.</div>')
+    +'</div>'
     +'<div class="card"><h3 style="font-size:17px">☁️ Pilvisynkronointi</h3>'
     +(cloudOn()
       ? '<div class="muted" style="margin-bottom:10px">Kirjautunut: <b style="color:var(--text)">'+esc((sbSession.user&&sbSession.user.email)||'')+'</b>'
@@ -1123,12 +1432,22 @@ function renderSettings(){
     catch(e){ toast('Lähetys epäonnistui: '+e.message); bl.disabled=false; bl.textContent='Lähetä kirjautumislinkki'; }
   };
   const bo=document.getElementById('btnlogout');
-  if(bo) bo.onclick=()=>{ sbSession=null; saveAuth(); syncMsg=''; toast('Kirjauduttu ulos'); render(); };
+  if(bo) bo.onclick=()=>{ sbSession=null; saveAuth(); syncMsg=''; synkkaTila='ei'; toast('Kirjauduttu ulos'); render(); };
+
+  const bpo=document.getElementById('btnoletusohjelma');
+  if(bpo) bpo.onclick=()=>{
+    vahvista('Palautetaanko perusohjelma? Kirjauksesi säilyvät.','Palauta').then(ok=>{
+      if(!ok) return;
+      delete state.ohjelma;
+      PROGRAM = DEFAULT_PROGRAM;
+      save(); render();
+    });
+  };
 
   document.getElementById('setstart').onchange=e=>{
-    if(e.target.value){ state.start=iso(mondayOf(fromIso(e.target.value))); save(); updateTopbar(); }
+    if(e.target.value){ state.start=iso(mondayOf(fromIso(e.target.value))); save(); pushSykli(); updateTopbar(); }
   };
-  document.getElementById('setdeload').onchange=e=>{ state.deloadEvery=+e.target.value; save(); updateTopbar(); };
+  document.getElementById('setdeload').onchange=e=>{ state.deloadEvery=+e.target.value; save(); pushSykli(); updateTopbar(); };
   document.getElementById('btnexport').onclick=()=>{
     const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
     const a=document.createElement('a');
@@ -1147,26 +1466,60 @@ function renderSettings(){
         if(!state.defaults) state.defaults={};
         if(!state.deloadEvery) state.deloadEvery=4;
         if(!state.prs) state.prs={};
+        if(!state.kevennysSiirrot) state.kevennysSiirrot=[];
         localStorage.setItem(KEY, JSON.stringify(state));
-        toast('Varmuuskopio tuotu ✓'); render();
+        toast('Varmuuskopio tuotu ✓'); render(); pushSykli();
       }catch(err){ toast('Tiedosto ei kelpaa — tarkista että se on tämän sovelluksen varmuuskopio.'); }
     };
     rd.readAsText(f);
   };
   document.getElementById('btnreset').onclick=()=>{
-    if(confirm('Poistetaanko kaikki kirjaukset pysyvästi tästä selaimesta?')){
-      state={ start: iso(mondayOf(new Date())), deloadEvery:4, sessions:{}, defaults:{}, prs:{} };
+    vahvista('Poistetaanko kaikki kirjaukset pysyvästi tästä selaimesta?','Poista kaikki').then(ok=>{
+      if(!ok) return;
+      state={ start: iso(mondayOf(new Date())), deloadEvery:4, sessions:{}, defaults:{}, prs:{}, kevennysSiirrot:[] };
       localStorage.setItem(KEY, JSON.stringify(state));
       toast('Tiedot tyhjennetty'); render();
-    }
+    });
   };
 }
 
 document.querySelectorAll('#tabs button').forEach(b=>{
   b.addEventListener('click',()=>{ tab=b.dataset.tab; render(); });
 });
+tarkistaOhjelmaLinkki();
 render();
 cloudBoot();
+function naytaPaivitysbanneri(reg){
+  if(document.getElementById('paivitysbanneri')) return;
+  const b=document.createElement('div');
+  b.id='paivitysbanneri';
+  b.innerHTML='<span>Uusi versio saatavilla</span>'
+    +'<button class="pb-paivita">Päivitä</button>'
+    +'<button class="pb-sulje" aria-label="Myöhemmin">✕</button>';
+  document.body.appendChild(b);
+  b.querySelector('.pb-paivita').onclick=()=>{ if(reg.waiting) reg.waiting.postMessage('SKIP_WAITING'); };
+  b.querySelector('.pb-sulje').onclick=()=>b.remove();
+}
+if ('serviceWorker' in navigator) {
+  const oliControlleri = !!navigator.serviceWorker.controller;
+  let reloadattu = false;
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    /* Uusi versio otti ohjat: lataa sivu kerran uudelleen. Ei ensiasennuksella. */
+    if(!oliControlleri || reloadattu) return;
+    reloadattu = true; location.reload();
+  });
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    const tarjoa=()=>{ if(reg.waiting && navigator.serviceWorker.controller) naytaPaivitysbanneri(reg); };
+    /* seuraa: uusi versio voi olla jo asentumassa ennen kuin updatefound-
+       kuuntelija ehtii paikalleen — siksi installing tarkistetaan myös heti. */
+    const seuraa=w=>{ if(w) w.addEventListener('statechange', tarjoa); };
+    tarjoa(); seuraa(reg.installing);
+    reg.addEventListener('updatefound', ()=>seuraa(reg.installing));
+    document.addEventListener('visibilitychange', ()=>{
+      if(document.visibilityState==='visible'){ tarjoa(); reg.update().catch(()=>{}); }
+    });
+  }).catch(()=>{});
+}
 </script>
 
 </body>
